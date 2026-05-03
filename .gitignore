@@ -28,6 +28,7 @@ data/**/*.jsonl
 data/**/*.csv
 data/**/*.parquet
 !data/gtharmbench.jsonl
+!data/gtharmbench_balanced.jsonl
 !data/README.md
 !data/.gitkeep
 
