@@ -27,7 +27,7 @@ outputs/**/*.npz
 data/**/*.jsonl
 data/**/*.csv
 data/**/*.parquet
-!data/example_gt_harmbench.jsonl
+!data/gtharmbench.jsonl
 !data/README.md
 !data/.gitkeep
 
