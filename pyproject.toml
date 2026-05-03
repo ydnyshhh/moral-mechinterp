@@ -31,12 +31,14 @@ dependencies = [
     "tqdm",
     "transformers",
     "typer",
-    "wandb",
 ]
 
 [project.optional-dependencies]
 quantization = [
     "bitsandbytes",
+]
+tracking = [
+    "wandb",
 ]
 dev = [
     "pytest",

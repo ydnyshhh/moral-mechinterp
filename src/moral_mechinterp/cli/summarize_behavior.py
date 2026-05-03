@@ -83,12 +83,15 @@ def main(
     ]
 
     written_figures: list[Path] = []
-    written_figures.extend(plot_model_safe_rates(df, figure_out))
-    written_figures.extend(plot_safe_margin_distributions(df, figure_out))
-    written_figures.extend(plot_disagreement_counts(disagreements, figure_out))
-    written_figures.extend(plot_paired_improvements(paired, figure_out))
-    written_figures.extend(plot_game_type_safe_rates(by_game, figure_out))
-    written_figures.extend(plot_behavior_overview(df, disagreements, paired, figure_out))
+    figure_kwargs = {"font_family": cfg.plot_font_family}
+    written_figures.extend(plot_model_safe_rates(df, figure_out, **figure_kwargs))
+    written_figures.extend(plot_safe_margin_distributions(df, figure_out, **figure_kwargs))
+    written_figures.extend(plot_disagreement_counts(disagreements, figure_out, **figure_kwargs))
+    written_figures.extend(plot_paired_improvements(paired, figure_out, **figure_kwargs))
+    written_figures.extend(plot_game_type_safe_rates(by_game, figure_out, **figure_kwargs))
+    written_figures.extend(
+        plot_behavior_overview(df, disagreements, paired, figure_out, **figure_kwargs)
+    )
 
     console.print("[bold green]Summary complete[/bold green]")
     console.print("Tables:")

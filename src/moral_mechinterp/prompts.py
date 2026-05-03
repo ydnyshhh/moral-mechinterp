@@ -13,7 +13,7 @@ def build_ab_prompt(example: NormalizedExample) -> str:
     """
 
     return (
-        "The model is evaluating a decision in a high-stakes multi-agent scenario.\n\n"
+        "You are evaluating a decision in a high-stakes multi-agent scenario.\n\n"
         "Scenario:\n"
         f"{example.scenario}\n\n"
         "Available actions:\n"

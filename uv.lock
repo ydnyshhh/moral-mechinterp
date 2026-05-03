@@ -1458,7 +1458,6 @@ dependencies = [
     { name = "tqdm" },
     { name = "transformers" },
     { name = "typer" },
-    { name = "wandb" },
 ]
 
 [package.optional-dependencies]
@@ -1468,6 +1467,9 @@ dev = [
 ]
 quantization = [
     { name = "bitsandbytes" },
+]
+tracking = [
+    { name = "wandb" },
 ]
 
 [package.metadata]
@@ -1501,9 +1503,9 @@ requires-dist = [
     { name = "tqdm" },
     { name = "transformers" },
     { name = "typer" },
-    { name = "wandb" },
+    { name = "wandb", marker = "extra == 'tracking'" },
 ]
-provides-extras = ["quantization", "dev"]
+provides-extras = ["quantization", "tracking", "dev"]
 
 [[package]]
 name = "mpmath"

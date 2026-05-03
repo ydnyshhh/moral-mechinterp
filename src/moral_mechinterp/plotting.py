@@ -5,95 +5,26 @@ from __future__ import annotations
 from pathlib import Path
 from textwrap import fill
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from moral_mechinterp.constants import MODEL_COLORS, MODEL_LABELS, MODEL_MARKERS, MODEL_ORDER
-from moral_mechinterp.io import ensure_dir
 from moral_mechinterp.metrics import bootstrap_ci, coerce_bool_series
-
-
-def apply_paper_style() -> None:
-    """Apply a custom empirical-science plotting style."""
-
-    try:
-        import scienceplots  # noqa: F401
-    except ImportError:
-        pass
-
-    mpl.rcParams.update(
-        {
-            "figure.facecolor": "white",
-            "axes.facecolor": "white",
-            "savefig.facecolor": "white",
-            "font.family": "DejaVu Sans",
-            "font.size": 8.5,
-            "axes.labelsize": 9,
-            "axes.titlesize": 9.5,
-            "xtick.labelsize": 8,
-            "ytick.labelsize": 8,
-            "legend.fontsize": 8,
-            "axes.edgecolor": "#2A2A2A",
-            "axes.linewidth": 0.85,
-            "xtick.color": "#2A2A2A",
-            "ytick.color": "#2A2A2A",
-            "xtick.major.width": 0.8,
-            "ytick.major.width": 0.8,
-            "xtick.major.size": 3.0,
-            "ytick.major.size": 3.0,
-            "grid.color": "#D9D9D9",
-            "grid.linewidth": 0.45,
-            "grid.alpha": 0.7,
-            "legend.frameon": False,
-            "pdf.fonttype": 42,
-            "ps.fonttype": 42,
-            "svg.fonttype": "none",
-            "savefig.dpi": 300,
-        }
-    )
-
-
-def _despine(ax: plt.Axes) -> None:
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-
-
-def _panel_label(ax: plt.Axes, label: str) -> None:
-    ax.text(
-        -0.12,
-        1.04,
-        label,
-        transform=ax.transAxes,
-        ha="left",
-        va="bottom",
-        fontsize=10,
-        fontweight="bold",
-    )
-
-
-def save_figure(fig: plt.Figure, output_base: str | Path) -> list[Path]:
-    base = Path(output_base)
-    ensure_dir(base.parent)
-    if base.suffix:
-        base = base.with_suffix("")
-
-    paths: list[Path] = []
-    for suffix in (".png", ".pdf", ".svg"):
-        path = base.with_suffix(suffix)
-        fig.savefig(path, bbox_inches="tight")
-        paths.append(path)
-    plt.close(fig)
-    return paths
+from moral_mechinterp.plot_style import apply_paper_style, despine, panel_label, save_figure
 
 
 def _available_prefixes(df: pd.DataFrame) -> list[str]:
     return [prefix for prefix in MODEL_ORDER if f"{prefix}_safe" in df.columns]
 
 
-def plot_model_safe_rates(df: pd.DataFrame, outdir: str | Path) -> list[Path]:
-    apply_paper_style()
+def plot_model_safe_rates(
+    df: pd.DataFrame,
+    outdir: str | Path,
+    *,
+    font_family: str = "serif",
+) -> list[Path]:
+    apply_paper_style(font_family=font_family)
     prefixes = _available_prefixes(df)
     fig, ax = plt.subplots(figsize=(3.35, 2.45))
 
@@ -129,12 +60,17 @@ def plot_model_safe_rates(df: pd.DataFrame, outdir: str | Path) -> list[Path]:
     ax.set_ylabel("Safe-action rate")
     ax.set_title("Model safety preference")
     ax.yaxis.grid(True)
-    _despine(ax)
+    despine(ax)
     return save_figure(fig, Path(outdir) / "safe_action_rates")
 
 
-def plot_safe_margin_distributions(df: pd.DataFrame, outdir: str | Path) -> list[Path]:
-    apply_paper_style()
+def plot_safe_margin_distributions(
+    df: pd.DataFrame,
+    outdir: str | Path,
+    *,
+    font_family: str = "serif",
+) -> list[Path]:
+    apply_paper_style(font_family=font_family)
     prefixes = _available_prefixes(df)
     data = [
         pd.to_numeric(df[f"{prefix}_safe_margin"], errors="coerce").dropna().to_numpy()
@@ -165,7 +101,7 @@ def plot_safe_margin_distributions(df: pd.DataFrame, outdir: str | Path) -> list
     ax.set_ylabel("Safe-action logit margin")
     ax.set_title("Decision-margin distribution")
     ax.yaxis.grid(True)
-    _despine(ax)
+    despine(ax)
     return save_figure(fig, Path(outdir) / "safe_margin_distributions")
 
 
@@ -183,8 +119,13 @@ def _format_disagreement_label(label: str) -> str:
     return fill(replacements.get(label, label.replace("_", " ")), width=31)
 
 
-def plot_disagreement_counts(disagreement_df: pd.DataFrame, outdir: str | Path) -> list[Path]:
-    apply_paper_style()
+def plot_disagreement_counts(
+    disagreement_df: pd.DataFrame,
+    outdir: str | Path,
+    *,
+    font_family: str = "serif",
+) -> list[Path]:
+    apply_paper_style(font_family=font_family)
     table = disagreement_df.sort_values("count", ascending=True).copy()
     fig_height = max(2.6, 0.34 * len(table) + 0.7)
     fig, ax = plt.subplots(figsize=(5.2, fig_height))
@@ -205,12 +146,17 @@ def plot_disagreement_counts(disagreement_df: pd.DataFrame, outdir: str | Path) 
             fontsize=7.5,
             color="#303030",
         )
-    _despine(ax)
+    despine(ax)
     return save_figure(fig, Path(outdir) / "disagreement_counts")
 
 
-def plot_paired_improvements(paired_df: pd.DataFrame, outdir: str | Path) -> list[Path]:
-    apply_paper_style()
+def plot_paired_improvements(
+    paired_df: pd.DataFrame,
+    outdir: str | Path,
+    *,
+    font_family: str = "serif",
+) -> list[Path]:
+    apply_paper_style(font_family=font_family)
     if paired_df.empty:
         return []
     fig, ax = plt.subplots(figsize=(3.35, 2.35))
@@ -238,12 +184,17 @@ def plot_paired_improvements(paired_df: pd.DataFrame, outdir: str | Path) -> lis
     ax.set_ylabel("Paired improvement vs Base")
     ax.set_title("Training effect on safe choices")
     ax.yaxis.grid(True)
-    _despine(ax)
+    despine(ax)
     return save_figure(fig, Path(outdir) / "paired_improvements")
 
 
-def plot_game_type_safe_rates(game_metrics_df: pd.DataFrame, outdir: str | Path) -> list[Path]:
-    apply_paper_style()
+def plot_game_type_safe_rates(
+    game_metrics_df: pd.DataFrame,
+    outdir: str | Path,
+    *,
+    font_family: str = "serif",
+) -> list[Path]:
+    apply_paper_style(font_family=font_family)
     if game_metrics_df.empty:
         return []
 
@@ -287,10 +238,12 @@ def plot_behavior_overview(
     disagreement_df: pd.DataFrame,
     paired_df: pd.DataFrame,
     outdir: str | Path,
+    *,
+    font_family: str = "serif",
 ) -> list[Path]:
     """Create a compact four-panel overview suitable for draft papers."""
 
-    apply_paper_style()
+    apply_paper_style(font_family=font_family)
     prefixes = _available_prefixes(behavior_df)
     fig, axes = plt.subplots(2, 2, figsize=(7.2, 5.1))
 
@@ -315,8 +268,8 @@ def plot_behavior_overview(
     ax.set_ylim(-0.02, 1.02)
     ax.set_ylabel("Safe-action rate")
     ax.yaxis.grid(True)
-    _despine(ax)
-    _panel_label(ax, "A")
+    despine(ax)
+    panel_label(ax, "A")
 
     ax = axes[0, 1]
     data = [
@@ -340,8 +293,8 @@ def plot_behavior_overview(
     ax.set_xticklabels([MODEL_LABELS[prefix] for prefix in prefixes])
     ax.set_ylabel("Safe margin")
     ax.yaxis.grid(True)
-    _despine(ax)
-    _panel_label(ax, "B")
+    despine(ax)
+    panel_label(ax, "B")
 
     ax = axes[1, 0]
     if paired_df.empty:
@@ -368,8 +321,8 @@ def plot_behavior_overview(
         ax.set_xticklabels(list(paired_df["model_label"]))
         ax.set_ylabel("Improvement vs Base")
         ax.yaxis.grid(True)
-        _despine(ax)
-    _panel_label(ax, "C")
+        despine(ax)
+    panel_label(ax, "C")
 
     ax = axes[1, 1]
     top = disagreement_df.sort_values("count", ascending=False).head(5).sort_values(
@@ -381,8 +334,8 @@ def plot_behavior_overview(
     ax.set_yticklabels([_format_disagreement_label(v) for v in top["disagreement_type"]])
     ax.set_xlabel("Examples")
     ax.xaxis.grid(True)
-    _despine(ax)
-    _panel_label(ax, "D")
+    despine(ax)
+    panel_label(ax, "D")
 
     fig.subplots_adjust(wspace=0.45, hspace=0.45)
     return save_figure(fig, Path(outdir) / "behavior_overview")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -42,7 +43,12 @@ def score_from_logits(logit_a: float, logit_b: float, safe_label: str) -> ABLogi
     )
 
 
-def resolve_score_token_ids(tokenizer: Any, score_tokens: dict[str, str]) -> dict[str, int]:
+def resolve_score_token_ids(
+    tokenizer: Any,
+    score_tokens: dict[str, str],
+    *,
+    allow_multitoken_score_labels: bool = False,
+) -> dict[str, int]:
     """Resolve configured score strings to single next-token ids."""
 
     token_ids: dict[str, int] = {}
@@ -50,10 +56,16 @@ def resolve_score_token_ids(tokenizer: Any, score_tokens: dict[str, str]) -> dic
         token_text = score_tokens[label]
         ids = tokenizer.encode(token_text, add_special_tokens=False)
         if len(ids) != 1:
-            raise ValueError(
+            message = (
                 f"Score token {label}={token_text!r} maps to {len(ids)} tokens ({ids}). "
-                "This evaluator expects single next-token labels."
+                "For strict next-token scoring, choose score_tokens that each tokenize to exactly "
+                "one token for this tokenizer. To proceed by using only the first token anyway, "
+                "set allow_multitoken_score_labels: true in configs/eval.yaml. For maximal "
+                "paper reliability, keep this false or implement full sequence scoring."
             )
+            if not allow_multitoken_score_labels:
+                raise ValueError(message)
+            warnings.warn(f"{message} Using first token id {ids[0]}.", stacklevel=2)
         token_ids[label] = int(ids[0])
     return token_ids
 
@@ -129,7 +141,11 @@ def score_examples_for_model(
     description: str,
     checkpoint_callback: Callable[[int, ABLogitScore], None] | None = None,
 ) -> list[ABLogitScore]:
-    token_ids = resolve_score_token_ids(tokenizer, config.score_tokens)
+    token_ids = resolve_score_token_ids(
+        tokenizer,
+        config.score_tokens,
+        allow_multitoken_score_labels=config.allow_multitoken_score_labels,
+    )
     prompts = [
         apply_chat_template_if_needed(
             tokenizer,

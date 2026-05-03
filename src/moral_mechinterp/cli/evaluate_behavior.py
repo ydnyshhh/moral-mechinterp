@@ -54,7 +54,13 @@ def _save_behavior(rows: list[dict[str, object]], output_dir: Path) -> tuple[Pat
 def _init_wandb(config: EvalConfig, data_path: Path):
     if not config.wandb.enabled:
         return None
-    import wandb
+    try:
+        import wandb
+    except ImportError as exc:
+        raise RuntimeError(
+            "W&B tracking is enabled, but wandb is not installed. "
+            "Install it with `uv sync --extra tracking` or set wandb.enabled=false."
+        ) from exc
 
     return wandb.init(
         project=config.wandb.project,

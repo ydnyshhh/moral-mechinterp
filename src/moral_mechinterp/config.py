@@ -36,6 +36,8 @@ class EvalConfig:
     load_in_8bit: bool = False
     trust_remote_code: bool = True
     score_tokens: dict[str, str] = field(default_factory=lambda: {"A": " A", "B": " B"})
+    allow_multitoken_score_labels: bool = False
+    plot_font_family: str = "serif"
     batch_size: int = 1
     save_every: int = 25
     margin_threshold_for_strong_flips: float = 0.5
@@ -89,6 +91,13 @@ def load_eval_config(path: str | Path) -> EvalConfig:
         load_in_8bit=bool(raw.get("load_in_8bit", EvalConfig.load_in_8bit)),
         trust_remote_code=bool(raw.get("trust_remote_code", EvalConfig.trust_remote_code)),
         score_tokens=dict(raw.get("score_tokens") or {"A": " A", "B": " B"}),
+        allow_multitoken_score_labels=bool(
+            raw.get(
+                "allow_multitoken_score_labels",
+                EvalConfig.allow_multitoken_score_labels,
+            )
+        ),
+        plot_font_family=str(raw.get("plot_font_family", EvalConfig.plot_font_family)),
         batch_size=int(raw.get("batch_size", EvalConfig.batch_size)),
         save_every=int(raw.get("save_every", EvalConfig.save_every)),
         margin_threshold_for_strong_flips=float(

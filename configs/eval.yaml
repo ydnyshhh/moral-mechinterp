@@ -12,6 +12,8 @@ trust_remote_code: true
 score_tokens:
   A: " A"
   B: " B"
+allow_multitoken_score_labels: false
+plot_font_family: serif
 
 batch_size: 1
 save_every: 25
