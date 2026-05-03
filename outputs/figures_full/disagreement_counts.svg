@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="446.016373pt" height="242.293003pt" viewBox="0 0 446.016373 242.293003" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-05-03T17:35:48.466152</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M -0 242.293003 
+L 446.016373 242.293003 
+L 446.016373 0 
+L -0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 118.12625 209.293003 
+L 408.28625 209.293003 
+L 408.28625 19.688203 
+L 118.12625 19.688203 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 118.12625 200.674603 
+L 118.631447 200.674603 
+L 118.631447 182.995834 
+L 118.12625 182.995834 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 118.12625 178.576142 
+L 119.010345 178.576142 
+L 119.010345 160.897372 
+L 118.12625 160.897372 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 118.12625 156.47768 
+L 119.515542 156.47768 
+L 119.515542 138.798911 
+L 118.12625 138.798911 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 118.12625 134.379219 
+L 120.273338 134.379219 
+L 120.273338 116.700449 
+L 118.12625 116.700449 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 118.12625 112.280757 
+L 120.904834 112.280757 
+L 120.904834 94.601988 
+L 118.12625 94.601988 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 118.12625 90.182295 
+L 121.66263 90.182295 
+L 121.66263 72.503526 
+L 118.12625 72.503526 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 118.12625 68.083834 
+L 232.80601 68.083834 
+L 232.80601 50.405065 
+L 118.12625 50.405065 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 118.12625 45.985372 
+L 394.469107 45.985372 
+L 394.469107 28.306603 
+L 118.12625 28.306603 
+z
+" clip-path="url(#p5dc2af9b59)" style="fill: #6e6e6e; stroke: #303030; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 118.12625 209.293003 
+L 118.12625 19.688203 
+" clip-path="url(#p5dc2af9b59)" style="fill: none; stroke: #d9d9d9; stroke-opacity: 0.7; stroke-width: 0.45; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_2">
+      <defs>
+       <path id="m743dba1b2b" d="M 0 0 
+L 0 3 
+" style="stroke: #2a2a2a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m743dba1b2b" x="118.12625" y="209.293003" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #2a2a2a" x="118.12625" y="221.256753" transform="rotate(-0 118.12625 221.256753)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 181.275897 209.293003 
+L 181.275897 19.688203 
+" clip-path="url(#p5dc2af9b59)" style="fill: none; stroke: #d9d9d9; stroke-opacity: 0.7; stroke-width: 0.45; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#m743dba1b2b" x="181.275897" y="209.293003" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #2a2a2a" x="181.275897" y="221.256753" transform="rotate(-0 181.275897 221.256753)">500</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 244.425545 209.293003 
+L 244.425545 19.688203 
+" clip-path="url(#p5dc2af9b59)" style="fill: none; stroke: #d9d9d9; stroke-opacity: 0.7; stroke-width: 0.45; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6">
+      <g>
+       <use xlink:href="#m743dba1b2b" x="244.425545" y="209.293003" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #2a2a2a" x="244.425545" y="221.256753" transform="rotate(-0 244.425545 221.256753)">1000</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 307.575192 209.293003 
+L 307.575192 19.688203 
+" clip-path="url(#p5dc2af9b59)" style="fill: none; stroke: #d9d9d9; stroke-opacity: 0.7; stroke-width: 0.45; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#m743dba1b2b" x="307.575192" y="209.293003" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #2a2a2a" x="307.575192" y="221.256753" transform="rotate(-0 307.575192 221.256753)">1500</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 370.72484 209.293003 
+L 370.72484 19.688203 
+" clip-path="url(#p5dc2af9b59)" style="fill: none; stroke: #d9d9d9; stroke-opacity: 0.7; stroke-width: 0.45; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10">
+      <g>
+       <use xlink:href="#m743dba1b2b" x="370.72484" y="209.293003" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #2a2a2a" x="370.72484" y="221.256753" transform="rotate(-0 370.72484 221.256753)">2000</text>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="font-size: 9px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle" x="263.20625" y="233.139722" transform="rotate(-0 263.20625 233.139722)">Examples</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_11">
+      <defs>
+       <path id="m2c7467156f" d="M 0 0 
+L -3 0 
+" style="stroke: #2a2a2a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="191.835219" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="111.62625" y="194.567094" transform="rotate(-0 111.62625 194.567094)">Base safe / trained harmful</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_12">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="169.736757" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(7.2 168.868632)">Base harmful / UT safe / GAME</text>
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(98.745 177.161382)">safe</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_13">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="147.638295" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(20.30625 146.77017)">Base harmful / UT harmful /</text>
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(73.1925 155.06292)">GAME safe</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_14">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="125.539834" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_10">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(19.64625 124.671709)">Base safe / UT safe / GAME</text>
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(86.29875 132.964459)">harmful</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_15">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="103.441372" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_11">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(7.2 102.573247)">Base harmful / UT safe / GAME</text>
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(86.29875 110.865997)">harmful</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_16">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="81.342911" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_12">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(7.2 80.474786)">Base safe / UT harmful / GAME</text>
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; fill: #2a2a2a" transform="translate(98.745 88.767536)">safe</text>
+     </g>
+    </g>
+    <g id="ytick_7">
+     <g id="line2d_17">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="59.244449" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_13">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="111.62625" y="61.976324" transform="rotate(-0 111.62625 61.976324)">All harmful</text>
+     </g>
+    </g>
+    <g id="ytick_8">
+     <g id="line2d_18">
+      <g>
+       <use xlink:href="#m2c7467156f" x="118.12625" y="37.145988" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_14">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="111.62625" y="39.877863" transform="rotate(-0 111.62625 39.877863)">All safe</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_11">
+    <path d="M 118.12625 209.293003 
+L 118.12625 19.688203 
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 118.12625 209.293003 
+L 408.28625 209.293003 
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="118.631447" y="193.582484" transform="rotate(-0 118.631447 193.582484)">  4 (0.1%)</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="119.010345" y="171.484023" transform="rotate(-0 119.010345 171.484023)">  7 (0.2%)</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="119.515542" y="149.385561" transform="rotate(-0 119.515542 149.385561)">  11 (0.3%)</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="120.273338" y="127.2871" transform="rotate(-0 120.273338 127.2871)">  17 (0.5%)</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="120.904834" y="105.188638" transform="rotate(-0 120.904834 105.188638)">  22 (0.7%)</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="121.66263" y="83.090176" transform="rotate(-0 121.66263 83.090176)">  28 (0.9%)</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="232.80601" y="60.991715" transform="rotate(-0 232.80601 60.991715)">  908 (28.5%)</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 7.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #303030" x="394.469107" y="38.893253" transform="rotate(-0 394.469107 38.893253)">  2188 (68.7%)</text>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 9.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle" x="263.20625" y="13.688203" transform="rotate(-0 263.20625 13.688203)">Disagreement-set counts</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p5dc2af9b59">
+   <rect x="118.12625" y="19.688203" width="290.16" height="189.6048"/>
+  </clipPath>
+ </defs>
+</svg>

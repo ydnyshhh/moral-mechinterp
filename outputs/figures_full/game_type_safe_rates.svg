@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="327.53555pt" height="184.732203pt" viewBox="0 0 327.53555 184.732203" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-05-03T17:35:49.127024</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M -0 184.732203 
+L 327.53555 184.732203 
+L 327.53555 0 
+L -0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 76.70125 163.832203 
+L 277.99975 163.832203 
+L 277.99975 19.688203 
+L 76.70125 19.688203 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g clip-path="url(#p85c2b1fc55)">
+    <image xlink:href="data:image/png;base64,
+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" id="image6194832eda" transform="scale(1 -1) translate(0 -144.24)" x="76.70125" y="-19.592203" width="201.36" height="144.24"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <defs>
+       <path id="m8a1724be26" d="M 0 0 
+L 0 3 
+" style="stroke: #2a2a2a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m8a1724be26" x="110.251" y="163.832203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #252525" x="110.251" y="175.795953" transform="rotate(-0 110.251 175.795953)">Base</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2">
+      <g>
+       <use xlink:href="#m8a1724be26" x="177.3505" y="163.832203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #b85c38" x="177.3505" y="175.795953" transform="rotate(-0 177.3505 175.795953)">UT</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3">
+      <g>
+       <use xlink:href="#m8a1724be26" x="244.45" y="163.832203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #287d8e" x="244.45" y="175.795953" transform="rotate(-0 244.45 175.795953)">GAME</text>
+     </g>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_4">
+      <defs>
+       <path id="m20d649ce03" d="M 0 0 
+L -3 0 
+" style="stroke: #2a2a2a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m20d649ce03" x="76.70125" y="31.700203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="70.20125" y="34.432078" transform="rotate(-0 70.20125 34.432078)">Bach or Stravinski</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_5">
+      <g>
+       <use xlink:href="#m20d649ce03" x="76.70125" y="55.724203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="70.20125" y="58.456078" transform="rotate(-0 70.20125 58.456078)">Chicken</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_6">
+      <g>
+       <use xlink:href="#m20d649ce03" x="76.70125" y="79.748203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_6">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="70.20125" y="82.480078" transform="rotate(-0 70.20125 82.480078)">Matching pennies</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_7">
+      <g>
+       <use xlink:href="#m20d649ce03" x="76.70125" y="103.772203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="70.20125" y="106.504078" transform="rotate(-0 70.20125 106.504078)">No conflict</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#m20d649ce03" x="76.70125" y="127.796203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="70.20125" y="130.528078" transform="rotate(-0 70.20125 130.528078)">Prisoner's Dilemma</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_9">
+      <g>
+       <use xlink:href="#m20d649ce03" x="76.70125" y="151.820203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: end; fill: #2a2a2a" x="70.20125" y="154.552078" transform="rotate(-0 70.20125 154.552078)">Stag hunt</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 76.70125 163.832203 
+L 76.70125 19.688203 
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 277.99975 163.832203 
+L 277.99975 19.688203 
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 76.70125 163.832203 
+L 277.99975 163.832203 
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 76.70125 19.688203 
+L 277.99975 19.688203 
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="110.251" y="33.330984" transform="rotate(-0 110.251 33.330984)">0.64</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="177.3505" y="33.330984" transform="rotate(-0 177.3505 33.330984)">0.64</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="244.45" y="33.330984" transform="rotate(-0 244.45 33.330984)">0.64</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #1f1f1f" x="110.251" y="57.354984" transform="rotate(-0 110.251 57.354984)">0.38</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #1f1f1f" x="177.3505" y="57.354984" transform="rotate(-0 177.3505 57.354984)">0.36</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #1f1f1f" x="244.45" y="57.354984" transform="rotate(-0 244.45 57.354984)">0.40</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #1f1f1f" x="110.251" y="81.378984" transform="rotate(-0 110.251 81.378984)">0.46</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #1f1f1f" x="177.3505" y="81.378984" transform="rotate(-0 177.3505 81.378984)">0.46</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #1f1f1f" x="244.45" y="81.378984" transform="rotate(-0 244.45 81.378984)">0.46</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="110.251" y="105.402984" transform="rotate(-0 110.251 105.402984)">1.00</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="177.3505" y="105.402984" transform="rotate(-0 177.3505 105.402984)">1.00</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="244.45" y="105.402984" transform="rotate(-0 244.45 105.402984)">1.00</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="110.251" y="129.426984" transform="rotate(-0 110.251 129.426984)">0.76</text>
+   </g>
+   <g id="text_23">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="177.3505" y="129.426984" transform="rotate(-0 177.3505 129.426984)">0.77</text>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="244.45" y="129.426984" transform="rotate(-0 244.45 129.426984)">0.74</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="110.251" y="153.450984" transform="rotate(-0 110.251 153.450984)">0.98</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="177.3505" y="153.450984" transform="rotate(-0 177.3505 153.450984)">0.98</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 7px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle; fill: #ffffff" x="244.45" y="153.450984" transform="rotate(-0 244.45 153.450984)">0.98</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 9.5px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle" x="177.3505" y="13.688203" transform="rotate(-0 177.3505 13.688203)">Safe-action rate by game type</text>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="patch_7">
+    <path d="M 284.52835 163.832203 
+L 291.73555 163.832203 
+L 291.73555 19.688203 
+L 284.52835 19.688203 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <image xlink:href="data:image/png;base64,
+iVBORw0KGgoAAAANSUhEUgAAAB4AAAJZCAYAAAC+8oVfAAACVElEQVR4nO3ZgW0DQQwDQSdw/yXbaSK3DxxnGyBWou4d5Of7/X5fD/D7RKjglPdD3RoctR0Lvi9YuQQfQ7kEH0O57g+2Y8HHUC7Bx1AuwYL/Ded0f7AdCz6Gcgk+hnLdH2zHgo+hXIKPoVyCj7FXrj1jwRl75dozFpyxVy7GGXvntBe8V649Y8EZe+XaMzZqwcew44y9Ue8ZC87YK9eeseCMvXLtGRu14GPYcYZR3x9sxxl7o2ac4ZwyGAu+L3ivXIwznFMG44w9Y6PO2DMWnLFXLsYZzimD8f3Be6PeMxacsVcuxhnOKYNxxp6xUQs+hh1nvD+fzyPBypWxZ2zUGR6QDOeUwThjz9hbnbFXrj1jo87wgGQ4pwzG9wfvjdpbneGcMhhn7D0gypXBOMM5ZXirM/Z2bNQZg8ZzD4hyZTDOcE4ZjDP2jI06g3HG4DnN/a5Wroy9UTPOcE4ZjDP2jI06Y9B47uetcmUwznBOGYwz9oyNOoNxhnPK8JdExt6OjTqDcYZzymB8f/DeqBlnOKcMxhl7xkadwTjDOWUwztgzNuoMxhnOKYNxxp6xUWf4p2aGc8pgnLFnbNQZe8ZGnTFoPPdjT7ky9sq1t2Plytgr156xc8rYK9fejpUrY9DYOVUoV4Yd3x+8N2rnlDF4TspVYcf3Bw+Wa87YHWfslWtvx8qVMWjsnCoGy8W4wjlleKsz9nZs1BmMM5xThq9Txt6OjTqDcYZzyvB1ytjbsVFn7Bkbdcag8dzXSbkyGGc4pwzGGb5OGYPlmjP+eb1ejyjvndMfW3SokP+ESJsAAAAASUVORK5CYII=" id="imagea37bf7cc47" transform="scale(1 -1) translate(0 -144.24)" x="284.64" y="-19.44" width="7.2" height="144.24"/>
+   <g id="matplotlib.axis_3"/>
+   <g id="matplotlib.axis_4">
+    <g id="ytick_7">
+     <g id="line2d_10">
+      <defs>
+       <path id="mad109b1370" d="M 0 0 
+L 3 0 
+" style="stroke: #2a2a2a; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#mad109b1370" x="291.73555" y="163.832203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_29">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #2a2a2a" x="298.23555" y="166.564078" transform="rotate(-0 298.23555 166.564078)">0.0</text>
+     </g>
+    </g>
+    <g id="ytick_8">
+     <g id="line2d_11">
+      <g>
+       <use xlink:href="#mad109b1370" x="291.73555" y="135.003403" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_30">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #2a2a2a" x="298.23555" y="137.735278" transform="rotate(-0 298.23555 137.735278)">0.2</text>
+     </g>
+    </g>
+    <g id="ytick_9">
+     <g id="line2d_12">
+      <g>
+       <use xlink:href="#mad109b1370" x="291.73555" y="106.174603" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_31">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #2a2a2a" x="298.23555" y="108.906478" transform="rotate(-0 298.23555 108.906478)">0.4</text>
+     </g>
+    </g>
+    <g id="ytick_10">
+     <g id="line2d_13">
+      <g>
+       <use xlink:href="#mad109b1370" x="291.73555" y="77.345803" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_32">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #2a2a2a" x="298.23555" y="80.077678" transform="rotate(-0 298.23555 80.077678)">0.6</text>
+     </g>
+    </g>
+    <g id="ytick_11">
+     <g id="line2d_14">
+      <g>
+       <use xlink:href="#mad109b1370" x="291.73555" y="48.517003" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_33">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #2a2a2a" x="298.23555" y="51.248878" transform="rotate(-0 298.23555 51.248878)">0.8</text>
+     </g>
+    </g>
+    <g id="ytick_12">
+     <g id="line2d_15">
+      <g>
+       <use xlink:href="#mad109b1370" x="291.73555" y="19.688203" style="fill: #2a2a2a; stroke: #2a2a2a; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_34">
+      <text style="font-size: 8px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: start; fill: #2a2a2a" x="298.23555" y="22.420078" transform="rotate(-0 298.23555 22.420078)">1.0</text>
+     </g>
+    </g>
+    <g id="text_35">
+     <text style="font-size: 9px; font-family: 'STIX Two Text', 'Times New Roman', 'Times', 'STIXGeneral', serif; text-anchor: middle" x="318.382269" y="91.760203" transform="rotate(-90 318.382269 91.760203)">Safe-action rate</text>
+    </g>
+   </g>
+   <g id="LineCollection_1"/>
+   <g id="patch_8">
+    <path d="M 284.52835 163.832203 
+L 288.13195 163.832203 
+L 291.73555 163.832203 
+L 291.73555 19.688203 
+L 288.13195 19.688203 
+L 284.52835 19.688203 
+L 284.52835 163.832203 
+z
+" style="fill: none; stroke: #2a2a2a; stroke-width: 0.85; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p85c2b1fc55">
+   <rect x="76.70125" y="19.688203" width="201.2985" height="144.144"/>
+  </clipPath>
+ </defs>
+</svg>

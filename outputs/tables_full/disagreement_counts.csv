@@ -1,0 +1,9 @@
+disagreement_type,count,percent
+all_safe,2188,0.6869701726844584
+all_harmful,908,0.2850863422291994
+base_safe_ut_harmful_game_safe,28,0.008791208791208791
+base_harmful_ut_safe_game_harmful,22,0.006907378335949764
+base_safe_ut_safe_game_harmful,17,0.005337519623233909
+base_harmful_ut_harmful_game_safe,11,0.003453689167974882
+base_harmful_ut_safe_game_safe,7,0.002197802197802198
+base_safe_trained_harmful,4,0.0012558869701726845

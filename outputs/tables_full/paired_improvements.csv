@@ -1,0 +1,3 @@
+comparison,model,model_label,mean_paired_improvement,ci_low,ci_high,n_examples
+ut_minus_base_safe_rate,ut,UT,-0.0009419152276295133,-0.005965463108320251,0.0037676609105180532,3185
+game_minus_base_safe_rate,game,GAME,-0.0009419152276295133,-0.004709576138147566,0.00282574568288854,3185
