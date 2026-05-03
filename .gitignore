@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Environments
+.venv/
+.env
+.env.*
+
+# Research outputs
+outputs/**/*.csv
+outputs/**/*.jsonl
+outputs/**/*.png
+outputs/**/*.pdf
+outputs/**/*.svg
+outputs/**/*.parquet
+outputs/**/*.pt
+outputs/**/*.safetensors
+outputs/**/*.npy
+outputs/**/*.npz
+!outputs/**/.gitkeep
+
+# Data policy: keep directory structure, do not accidentally commit benchmark dumps.
+data/**/*.jsonl
+data/**/*.csv
+data/**/*.parquet
+!data/example_gt_harmbench.jsonl
+!data/README.md
+!data/.gitkeep
+
+# Tooling
+wandb/
+.ipynb_checkpoints/

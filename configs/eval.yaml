@@ -1,0 +1,34 @@
+seed: 42
+max_examples: null
+shuffle: false
+
+use_chat_template: false
+torch_dtype: bfloat16
+device_map: auto
+load_in_4bit: false
+load_in_8bit: false
+trust_remote_code: true
+
+score_tokens:
+  A: " A"
+  B: " B"
+
+batch_size: 1
+save_every: 25
+margin_threshold_for_strong_flips: 0.5
+
+models:
+  base: unsloth/Qwen3.5-9B
+  ut: agentic-moral-alignment/qwen35-9b__gtharm_pd_str_tft__gtharm_ut__native_tool__r1__gtharm_pd
+  game: agentic-moral-alignment/qwen35-9b__gtharm_pd_str_tft__gtharm_game__native_tool__r1__gtharm_pd
+
+wandb:
+  enabled: false
+  project: moral-mechinterp
+  entity: null
+  run_name: null
+
+outputs:
+  behavior_dir: outputs/behavior
+  figures_dir: outputs/figures
+  tables_dir: outputs/tables

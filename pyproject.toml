@@ -1,0 +1,65 @@
+[project]
+name = "moral-mechinterp"
+version = "0.1.0"
+description = "Behavioral evaluation and disagreement-set construction for GT-HarmBench-style mechanistic interpretability work."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "accelerate",
+    "adjustText",
+    "brokenaxes",
+    "colorspacious",
+    "datasets",
+    "einops",
+    "huggingface-hub",
+    "jsonlines",
+    "kaleido",
+    "matplotlib",
+    "numpy",
+    "palettable",
+    "pandas",
+    "plotly",
+    "pyyaml",
+    "rich",
+    "safetensors",
+    "scienceplots",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "statannotations",
+    "torch",
+    "tqdm",
+    "transformers",
+    "typer",
+    "wandb",
+]
+
+[project.optional-dependencies]
+quantization = [
+    "bitsandbytes",
+]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[project.scripts]
+moral-eval = "moral_mechinterp.cli.evaluate_behavior:app"
+moral-summary = "moral_mechinterp.cli.summarize_behavior:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
