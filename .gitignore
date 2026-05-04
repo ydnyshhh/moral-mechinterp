@@ -12,6 +12,7 @@ __pycache__/
 
 # Research outputs
 outputs/**/*.csv
+outputs/**/*.json
 outputs/**/*.jsonl
 outputs/**/*.png
 outputs/**/*.pdf
