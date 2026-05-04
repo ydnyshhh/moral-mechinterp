@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
-
-import numpy as np
-import pandas as pd
+from typing import TYPE_CHECKING
 
 from moral_mechinterp.constants import MODEL_ORDER
+
+if TYPE_CHECKING:
+    import pandas as pd
+
 
 CONTROL_SUBSETS = {
     "random_pd_150": {
@@ -28,34 +31,39 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument(
-        "--logit-lens-dir",
+        "--base-dir",
         type=Path,
         default=Path("outputs/logit_lens_fixed"),
     )
     parser.add_argument(
-        "--output-path",
+        "--output-csv",
         type=Path,
         default=Path("outputs/tables_full/random_control_late_layer_logit_lens.csv"),
     )
     parser.add_argument(
-        "--subsets",
-        default="random_pd_150,random_chicken_150",
-        help="Comma-separated subset directory names under --logit-lens-dir.",
+        "--output-md",
+        type=Path,
+        default=Path("outputs/tables_full/random_control_late_layer_logit_lens.md"),
     )
-    parser.add_argument("--late-layer-start", type=int, default=21)
-    parser.add_argument("--late-layer-end", type=int, default=31)
+    parser.add_argument("--late-start", type=int, default=21)
+    parser.add_argument("--late-end", type=int, default=31)
     return parser.parse_args()
 
 
-def parse_subset_names(subsets: str) -> list[str]:
-    names = [name.strip() for name in subsets.split(",") if name.strip()]
-    if not names:
-        raise ValueError("At least one subset name is required.")
-    return names
+def load_pandas():
+    import pandas as pd
+
+    return pd
 
 
-def read_summary(logit_lens_dir: Path, subset_name: str) -> pd.DataFrame:
-    path = logit_lens_dir / subset_name / "layer_margin_summary.csv"
+def configure_stdout() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+
+def read_summary(base_dir: Path, subset_name: str) -> pd.DataFrame:
+    pd = load_pandas()
+    path = base_dir / subset_name / "layer_margin_summary.csv"
     if not path.exists():
         raise FileNotFoundError(
             f"Missing summary CSV for {subset_name}: {path}. "
@@ -69,33 +77,28 @@ def read_summary(logit_lens_dir: Path, subset_name: str) -> pd.DataFrame:
     return summary
 
 
-def dominant_game_type(logit_lens_dir: Path, subset_name: str) -> str:
-    path = logit_lens_dir / subset_name / "layer_margins.csv"
+def dominant_game_type(base_dir: Path, subset_name: str) -> str:
+    pd = load_pandas()
+    path = base_dir / subset_name / "layer_margins.csv"
     if path.exists():
         margins = pd.read_csv(path, usecols=["id", "game_type"])
         examples = margins.drop_duplicates()
         if not examples.empty:
             return str(examples["game_type"].value_counts().idxmax())
 
-    known = CONTROL_SUBSETS.get(subset_name)
-    if known is not None:
-        return str(known["dominant_game_type"])
-    return "unknown"
+    known = CONTROL_SUBSETS[subset_name]
+    return str(known["dominant_game_type"])
 
 
 def late_layer_model_means(
     summary: pd.DataFrame,
     *,
-    late_layer_start: int,
-    late_layer_end: int,
+    late_start: int,
+    late_end: int,
 ) -> dict[str, float]:
-    late = summary[
-        (summary["layer"] >= late_layer_start) & (summary["layer"] <= late_layer_end)
-    ].copy()
+    late = summary[(summary["layer"] >= late_start) & (summary["layer"] <= late_end)].copy()
     if late.empty:
-        raise ValueError(
-            f"No rows found for late layers {late_layer_start}-{late_layer_end}."
-        )
+        raise ValueError(f"No rows found for late layers {late_start}-{late_end}.")
 
     by_model = late.groupby("model")["mean_safe_margin"].mean()
     missing_models = [model_key for model_key in MODEL_ORDER if model_key not in by_model]
@@ -104,26 +107,16 @@ def late_layer_model_means(
     return {model_key: float(by_model[model_key]) for model_key in MODEL_ORDER}
 
 
-def subset_label(subset_name: str) -> str:
-    known = CONTROL_SUBSETS.get(subset_name)
-    if known is not None:
-        return str(known["subset"])
-    return subset_name
-
-
-def summarize_control_subset(
+def summarize_subset(
     *,
-    logit_lens_dir: Path,
+    base_dir: Path,
     subset_name: str,
-    late_layer_start: int,
-    late_layer_end: int,
+    late_start: int,
+    late_end: int,
 ) -> dict[str, object]:
-    summary = read_summary(logit_lens_dir, subset_name)
-    means = late_layer_model_means(
-        summary,
-        late_layer_start=late_layer_start,
-        late_layer_end=late_layer_end,
-    )
+    pd = load_pandas()
+    summary = read_summary(base_dir, subset_name)
+    means = late_layer_model_means(summary, late_start=late_start, late_end=late_end)
     model_margins = {
         "Base": means["base"],
         "UT": means["ut"],
@@ -133,10 +126,10 @@ def summarize_control_subset(
     n = int(pd.to_numeric(summary["n"], errors="coerce").dropna().max())
 
     return {
-        "subset": subset_label(subset_name),
+        "subset": str(CONTROL_SUBSETS[subset_name]["subset"]),
         "subset_name": subset_name,
         "n": n,
-        "dominant_game_type": dominant_game_type(logit_lens_dir, subset_name),
+        "dominant_game_type": dominant_game_type(base_dir, subset_name),
         "base_late_margin": means["base"],
         "ut_late_margin": means["ut"],
         "game_late_margin": means["game"],
@@ -144,27 +137,79 @@ def summarize_control_subset(
         "game_minus_base": means["game"] - means["base"],
         "game_minus_ut": means["game"] - means["ut"],
         "winner": winner,
-        "late_layers": f"{late_layer_start}-{late_layer_end}",
+        "late_layers": f"{late_start}-{late_end}",
     }
 
 
-def main() -> None:
-    args = parse_args()
-    rows = [
-        summarize_control_subset(
-            logit_lens_dir=args.logit_lens_dir,
-            subset_name=subset_name,
-            late_layer_start=args.late_layer_start,
-            late_layer_end=args.late_layer_end,
+def format_delta(value: float) -> str:
+    return f"{value:+.3f}"
+
+
+def format_markdown_table(table: pd.DataFrame, *, late_start: int, late_end: int) -> str:
+    layers = f"{late_start}–{late_end}"
+    lines = [
+        "| Subset | n | UT−Base late | GAME−Base late | Winner | Layers |",
+        "|---|---:|---:|---:|---|---|",
+    ]
+    for row in table.itertuples(index=False):
+        lines.append(
+            "| "
+            f"{row.subset} | "
+            f"{row.n} | "
+            f"{format_delta(row.ut_minus_base)} | "
+            f"{format_delta(row.game_minus_base)} | "
+            f"{row.winner} | "
+            f"{layers} |"
         )
-        for subset_name in parse_subset_names(args.subsets)
+    return "\n".join(lines) + "\n"
+
+
+def print_full_table(table: pd.DataFrame) -> None:
+    display = table.copy()
+    numeric_columns = [
+        "base_late_margin",
+        "ut_late_margin",
+        "game_late_margin",
+        "ut_minus_base",
+        "game_minus_base",
+        "game_minus_ut",
+    ]
+    for column in numeric_columns:
+        display[column] = display[column].map(lambda value: f"{value:.3f}")
+    print(display.to_string(index=False))
+
+
+def main() -> None:
+    configure_stdout()
+    args = parse_args()
+    if args.late_end < args.late_start:
+        raise ValueError("--late-end must be greater than or equal to --late-start.")
+
+    pd = load_pandas()
+    rows = [
+        summarize_subset(
+            base_dir=args.base_dir,
+            subset_name=subset_name,
+            late_start=args.late_start,
+            late_end=args.late_end,
+        )
+        for subset_name in CONTROL_SUBSETS
     ]
     table = pd.DataFrame(rows)
-    args.output_path.parent.mkdir(parents=True, exist_ok=True)
-    table.to_csv(args.output_path, index=False)
-    with pd.option_context("display.max_columns", None, "display.width", 120):
-        print(table.replace({np.nan: None}).to_string(index=False))
-    print(f"\nWrote random control late-layer table: {args.output_path}")
+
+    args.output_csv.parent.mkdir(parents=True, exist_ok=True)
+    table.to_csv(args.output_csv, index=False)
+
+    markdown = format_markdown_table(table, late_start=args.late_start, late_end=args.late_end)
+    args.output_md.parent.mkdir(parents=True, exist_ok=True)
+    args.output_md.write_text(markdown, encoding="utf-8")
+
+    print("Full random-control late-layer table:")
+    print_full_table(table)
+    print("\nCompact Markdown table:")
+    print(markdown, end="")
+    print(f"\nWrote CSV: {args.output_csv}")
+    print(f"Wrote Markdown: {args.output_md}")
 
 
 if __name__ == "__main__":

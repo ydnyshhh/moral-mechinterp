@@ -23,7 +23,7 @@ PYTHONPATH=src python scripts/04_make_paper_figures.py
 
 ## Random Game-Type Controls
 
-The random PD/Chicken controls test whether late-layer adapter separation appears beyond margin-shift-selected or categorical-disagreement subsets. Create or validate the fixed random subsets, run the existing logit-lens script, then summarize layers 21-31 with:
+The random PD/Chicken controls test whether late-layer adapter separation appears beyond margin-shift-selected or categorical-disagreement subsets. Late-layer means average layers 21-31; layer 32 is excluded because it recovers the final behavioral A/B margin. Create or validate the fixed random subsets, run the existing logit-lens script, then summarize layers 21-31 with:
 
 ```bash
 PYTHONPATH=src python scripts/04_make_random_control_subsets.py
