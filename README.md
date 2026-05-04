@@ -93,7 +93,10 @@ Adapter-delta logit-lens subtracts the Base safe-margin trajectory from each ada
 
 Adapter-delta heatmaps subtract the Base safe-margin trajectory from each adapter trajectory across subsets and layers. Values show adapter-induced safe-action evidence shifts, with positive values indicating higher safe-option evidence relative to Base. Late-layer summaries average layers 21-31, excluding layer 32 because it recovers the final behavioral A/B margin.
 
+The late-layer effect summary heatmap combines adapter-delta logit-lens effects with cosine representation drift. Margin columns use a signed diverging scale, while drift columns use a separate sequential scale because drift is several orders of magnitude smaller.
+
 ```bash
 PYTHONPATH=src python scripts/08_plot_adapter_delta_logit_lens.py
 PYTHONPATH=src python scripts/09_plot_adapter_delta_heatmap.py
+PYTHONPATH=src python scripts/10_plot_late_layer_effect_summary_heatmap.py
 ```
