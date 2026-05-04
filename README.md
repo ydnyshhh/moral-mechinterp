@@ -42,3 +42,47 @@ PYTHONPATH=src python scripts/03_logit_lens_margins.py \
 
 PYTHONPATH=src python scripts/05_summarize_control_logit_lens.py
 ```
+
+## Layerwise Representation Drift
+
+Representation drift compares final prompt-token hidden states across models at each layer using pairwise cosine drift. This tests whether late-layer logit-lens separation corresponds to representation-space movement or to smaller readout-aligned perturbations. Run one subset at a time so only one 9B model is loaded during extraction:
+
+```bash
+PYTHONPATH=src python scripts/06_representation_drift.py \
+  --subset-csv outputs/behavior_full/subsets/top_ut_margin_shift.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/representation_drift/top_ut_margin_shift \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/06_representation_drift.py \
+  --subset-csv outputs/behavior_full/subsets/top_game_margin_shift.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/representation_drift/top_game_margin_shift \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/06_representation_drift.py \
+  --subset-csv outputs/behavior_full/subsets/ut_safe_game_harmful.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/representation_drift/ut_safe_game_harmful \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/06_representation_drift.py \
+  --subset-csv outputs/behavior_full/subsets/game_safe_ut_harmful.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/representation_drift/game_safe_ut_harmful \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/06_representation_drift.py \
+  --subset-csv outputs/behavior_full/subsets/random_pd_150.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/representation_drift/random_pd_150 \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/06_representation_drift.py \
+  --subset-csv outputs/behavior_full/subsets/random_chicken_150.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/representation_drift/random_chicken_150 \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/07_summarize_representation_drift.py
+```
