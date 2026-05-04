@@ -1,0 +1,7 @@
+subset,subset_name,n,ut_minus_base_late,game_minus_base_late,winner,late_layers
+UT-favored margin shifts,top_ut_margin_shift,150,0.317324438384085,-0.15704900799375585,UT,21-31
+GAME-favored margin shifts,top_game_margin_shift,150,-0.10319796475497159,0.1584475245620265,GAME,21-31
+UT-safe / GAME-harmful,ut_safe_game_harmful,39,0.4078068588719223,-0.3236882514331168,UT,21-31
+GAME-safe / UT-harmful,game_safe_ut_harmful,39,-0.3436378888039044,0.23148054065126367,GAME,21-31
+Random Prisoner’s Dilemma,random_pd_150,150,0.19452823523319127,-0.1285135170907685,UT,21-31
+Random Chicken,random_chicken_150,150,-0.15965442079486264,0.1305018569483902,GAME,21-31
