@@ -28,7 +28,10 @@ from moral_mechinterp.utils import batched, set_seed
 REQUIRED_COLUMNS = {"id", "game_type", "scenario", "option_a", "option_b", "safe_label"}
 HIDDEN_STATE_INTERPRETATION = (
     "Layer indices are the hidden_state tuple indices returned by Hugging Face models: "
-    "layer 0 is the embedding output, and layers 1..L are transformer block outputs."
+    "layer 0 is the embedding output, and layers 1..L are transformer block outputs. "
+    "For each intermediate residual stream, this script applies the model's final "
+    "normalization layer, typically RMSNorm for Qwen/LLaMA-style models, before "
+    "projecting through the LM head. This is a normed logit lens, not a tuned lens."
 )
 
 
@@ -169,6 +172,7 @@ def write_metadata(
         "load_in_8bit": config.load_in_8bit,
         "use_chat_template": config.use_chat_template,
         "score_tokens": config.score_tokens,
+        "allow_multitoken_score_labels": config.allow_multitoken_score_labels,
         "hidden_state_interpretation": HIDDEN_STATE_INTERPRETATION,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -205,7 +209,7 @@ def score_model(
         token_ids = resolve_score_token_ids(
             tokenizer,
             config.score_tokens,
-            allow_multitoken_score_labels=False,
+            allow_multitoken_score_labels=config.allow_multitoken_score_labels,
         )
         lm_head = get_lm_head(model)
         final_norm = get_final_norm(model)

@@ -4,7 +4,7 @@
 
 ## Layerwise Logit-Lens Margins
 
-Layerwise logit-lens margins measure how strongly each intermediate layer's residual stream linearly supports the safe option over the harmful option. This is not a causal intervention; it is a diagnostic of decision-evidence trajectories. We use it because behavioral differences between adapters are mostly small margin shifts rather than strong binary flips.
+Layerwise logit-lens margins measure how strongly each intermediate layer's residual stream linearly supports the safe option over the harmful option. For each intermediate residual stream, we apply the model's final RMSNorm/final normalization layer before unembedding through the LM head; this is a normed logit lens, not a tuned lens. This is not a causal intervention, but a diagnostic of decision-evidence trajectories. We use it because behavioral differences between adapters are mostly small margin shifts rather than strong binary flips.
 
 ```bash
 PYTHONPATH=src python scripts/03_logit_lens_margins.py --subset-csv outputs/behavior_full/subsets/top_ut_margin_shift.csv --config configs/eval.yaml --output-dir outputs/logit_lens/top_ut_margin_shift --models base,ut,game
