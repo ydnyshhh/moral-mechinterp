@@ -1,0 +1,23 @@
+{
+  "subset_csv": "outputs/behavior_full/subsets/random_pd_150.csv",
+  "subset_name": "random_pd_150",
+  "n_examples": 150,
+  "models": [
+    "base",
+    "ut",
+    "game"
+  ],
+  "config_path": "configs/eval.yaml",
+  "torch_dtype": "bfloat16",
+  "device_map": "auto",
+  "load_in_4bit": false,
+  "load_in_8bit": false,
+  "use_chat_template": false,
+  "score_tokens": {
+    "A": " A",
+    "B": " B"
+  },
+  "allow_multitoken_score_labels": false,
+  "hidden_state_interpretation": "Layer indices are the hidden_state tuple indices returned by Hugging Face models: layer 0 is the embedding output, and layers 1..L are transformer block outputs. For each intermediate residual stream, this script applies the model's final normalization layer, typically RMSNorm for Qwen/LLaMA-style models, before projecting through the LM head. The final hidden-state entry is assumed to already be final-normalized for Qwen/LLaMA-style HF decoder models, so final_norm is not applied again at the last layer. The last-layer logit-lens margin should therefore closely match the behavioral final-logit safe margin when prompts and A/B token ids match. This is a normed logit lens, not a tuned lens.",
+  "created_at": "2026-05-04T14:12:57.932095+00:00"
+}

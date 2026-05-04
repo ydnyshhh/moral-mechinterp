@@ -1,0 +1,3 @@
+subset,subset_name,n,dominant_game_type,base_late_margin,ut_late_margin,game_late_margin,ut_minus_base,game_minus_base,game_minus_ut,winner,late_layers
+Random Prisoner's Dilemma,random_pd_150,150,Prisoner's Dilemma,1.745228086529356,1.9397563217625473,1.6167145694385878,0.1945282352331914,-0.12851351709076808,-0.3230417523239595,UT,21-31
+Random Chicken,random_chicken_150,150,Chicken,-1.266923643169981,-1.4265780639648435,-1.1364217862215908,-0.15965442079486247,0.13050185694839023,0.2901562777432527,GAME,21-31
