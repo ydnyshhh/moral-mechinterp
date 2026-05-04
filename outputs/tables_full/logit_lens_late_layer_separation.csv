@@ -1,0 +1,5 @@
+subset,subset_name,n,dominant_game_type,base_late_margin,ut_late_margin,game_late_margin,ut_minus_base,game_minus_base,winner,late_layers
+UT-favored margin shifts,top_ut_margin_shift,150,Prisoner's Dilemma,1.352521253643614,1.669845692027699,1.1954722456498579,0.317324438384085,-0.1570490079937561,UT,21-31
+GAME-favored margin shifts,top_game_margin_shift,150,Chicken,0.15124567205255682,0.04804770729758523,0.30969319661458333,-0.10319796475497159,0.15844752456202651,GAME,21-31
+UT-safe / GAME-harmful disagreements,ut_safe_game_harmful,39,Prisoner's Dilemma,0.031001484477436624,0.438808343349359,-0.29268676695568024,0.40780685887192236,-0.32368825143311686,UT,21-31
+GAME-safe / UT-harmful disagreements,game_safe_ut_harmful,39,Chicken,-0.0029911494755244755,-0.3466290382794289,0.22848939117573913,-0.34363788880390445,0.2314805406512636,GAME,21-31

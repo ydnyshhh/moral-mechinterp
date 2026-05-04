@@ -73,17 +73,32 @@ def despine(ax: plt.Axes) -> None:
     ax.spines["right"].set_visible(False)
 
 
-def panel_label(ax: plt.Axes, label: str) -> None:
+def panel_label(
+    ax: plt.Axes,
+    label: str,
+    *,
+    x: float = 0.03,
+    y: float = 0.94,
+    ha: str = "left",
+    va: str = "top",
+) -> None:
     ax.text(
-        -0.12,
-        1.04,
+        x,
+        y,
         label,
         transform=ax.transAxes,
-        ha="left",
-        va="bottom",
+        ha=ha,
+        va=va,
         fontsize=10,
         fontweight="bold",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.9, "pad": 1.2},
     )
+
+
+def _trim_svg_trailing_whitespace(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    trimmed = "\n".join(line.rstrip() for line in text.splitlines()) + "\n"
+    path.write_text(trimmed, encoding="utf-8")
 
 
 def save_figure(fig: plt.Figure, output_base: str | Path) -> list[Path]:
@@ -96,6 +111,8 @@ def save_figure(fig: plt.Figure, output_base: str | Path) -> list[Path]:
     for suffix in (".png", ".pdf", ".svg"):
         path = base.with_suffix(suffix)
         fig.savefig(path, bbox_inches="tight")
+        if suffix == ".svg":
+            _trim_svg_trailing_whitespace(path)
         paths.append(path)
     plt.close(fig)
     return paths
