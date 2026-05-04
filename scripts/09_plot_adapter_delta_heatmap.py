@@ -172,6 +172,31 @@ def table_to_matrix(table: pd.DataFrame, layers: list[int]):
     return table[layer_columns].to_numpy(dtype=float)
 
 
+def smooth_matrix_by_layer(
+    matrix,
+    layers: list[int],
+    *,
+    points_per_layer: int = 10,
+):
+    import numpy as np
+
+    if points_per_layer < 1:
+        raise ValueError("points_per_layer must be at least 1.")
+    layer_array = np.asarray(layers, dtype=float)
+    display_layers = np.linspace(
+        float(layer_array.min()),
+        float(layer_array.max()),
+        int((layer_array.max() - layer_array.min()) * points_per_layer) + 1,
+    )
+    smoothed = np.vstack(
+        [
+            np.interp(display_layers, layer_array, row.astype(float))
+            for row in matrix
+        ]
+    )
+    return smoothed, display_layers
+
+
 def symmetric_vlim(*matrices, requested_vlim: float | None = None) -> float:
     import numpy as np
 
@@ -192,14 +217,25 @@ def symmetric_vlim(*matrices, requested_vlim: float | None = None) -> float:
     return max(max_abs, 1e-6)
 
 
-def add_late_layer_box(ax, *, layers: list[int], late_start: int, late_end: int) -> None:
+def layer_to_heatmap_x(layer: float, display_layers) -> float:
+    import numpy as np
+
+    return float(np.interp(layer, display_layers, np.arange(len(display_layers))) + 0.5)
+
+
+def add_late_layer_box(
+    ax,
+    *,
+    display_layers,
+    late_start: int,
+    late_end: int,
+) -> None:
     from matplotlib.patches import Rectangle
 
-    layer_to_pos = {layer: idx for idx, layer in enumerate(layers)}
-    if late_start not in layer_to_pos or late_end not in layer_to_pos:
+    if late_start < min(display_layers) or late_end > max(display_layers):
         return
-    left = layer_to_pos[late_start]
-    right = layer_to_pos[late_end] + 1
+    left = layer_to_heatmap_x(late_start, display_layers) - 0.5
+    right = layer_to_heatmap_x(late_end, display_layers) + 0.5
     ax.add_patch(
         Rectangle(
             (left, 0),
@@ -214,11 +250,18 @@ def add_late_layer_box(ax, *, layers: list[int], late_start: int, late_end: int)
     )
 
 
-def set_layer_ticks(ax, *, layers: list[int]) -> None:
+def set_layer_ticks(ax, *, display_layers) -> None:
     desired_ticks = [0, 5, 10, 15, 20, 25, 30, 32]
-    layer_to_pos = {layer: idx for idx, layer in enumerate(layers)}
-    ticks = [layer_to_pos[layer] + 0.5 for layer in desired_ticks if layer in layer_to_pos]
-    labels = [str(layer) for layer in desired_ticks if layer in layer_to_pos]
+    ticks = [
+        layer_to_heatmap_x(layer, display_layers)
+        for layer in desired_ticks
+        if min(display_layers) <= layer <= max(display_layers)
+    ]
+    labels = [
+        str(layer)
+        for layer in desired_ticks
+        if min(display_layers) <= layer <= max(display_layers)
+    ]
     ax.set_xticks(ticks)
     ax.set_xticklabels(labels, rotation=0)
 
@@ -246,6 +289,8 @@ def plot_heatmap(
 
     ut_matrix = table_to_matrix(ut_table, layers)
     game_matrix = table_to_matrix(game_table, layers)
+    ut_display_matrix, display_layers = smooth_matrix_by_layer(ut_matrix, layers)
+    game_display_matrix, _ = smooth_matrix_by_layer(game_matrix, layers)
     row_labels = [
         f"{row.subset} (n={n_by_subset[str(row.subset_name)]})"
         for row in ut_table.itertuples(index=False)
@@ -288,12 +333,16 @@ def plot_heatmap(
         "vmin": -vlim,
         "vmax": vlim,
         "center": 0.0,
-        "linewidths": 0.22,
+        "linewidths": 0.0,
         "linecolor": "#FFFFFF",
         "square": False,
     }
+    late_heatmap_kwargs = {
+        **heatmap_kwargs,
+        "linewidths": 0.35,
+    }
     sns.heatmap(
-        ut_matrix,
+        ut_display_matrix,
         ax=ax_ut,
         cbar=False,
         yticklabels=row_labels,
@@ -301,13 +350,13 @@ def plot_heatmap(
         **heatmap_kwargs,
     )
     sns.heatmap(
-        game_matrix,
+        game_display_matrix,
         ax=ax_game,
         cbar=True,
         cbar_ax=cbar_ax,
         yticklabels=False,
         xticklabels=False,
-        cbar_kws={"label": "Adapter-induced safe-action margin shift"},
+        cbar_kws={"label": "Safe-margin shift relative to Base"},
         **heatmap_kwargs,
     )
     sns.heatmap(
@@ -319,7 +368,7 @@ def plot_heatmap(
         annot=ut_late_annot,
         fmt="",
         annot_kws={"fontsize": 7.4, "fontweight": "bold"},
-        **heatmap_kwargs,
+        **late_heatmap_kwargs,
     )
     sns.heatmap(
         game_late,
@@ -330,7 +379,7 @@ def plot_heatmap(
         annot=game_late_annot,
         fmt="",
         annot_kws={"fontsize": 7.4, "fontweight": "bold"},
-        **heatmap_kwargs,
+        **late_heatmap_kwargs,
     )
     ax_game.set_ylim(ax_ut.get_ylim())
     ax_ut_late.set_ylim(ax_ut.get_ylim())
@@ -340,15 +389,20 @@ def plot_heatmap(
         ax.set_title(title, pad=8)
         ax.set_xlabel("Layer")
         ax.tick_params(axis="both", length=0)
-        set_layer_ticks(ax, layers=layers)
-        add_late_layer_box(ax, layers=layers, late_start=late_start, late_end=late_end)
+        set_layer_ticks(ax, display_layers=display_layers)
+        add_late_layer_box(
+            ax,
+            display_layers=display_layers,
+            late_start=late_start,
+            late_end=late_end,
+        )
         for spine in ax.spines.values():
             spine.set_visible(True)
             spine.set_linewidth(0.65)
             spine.set_color("#2A2A2A")
 
     for ax in (ax_ut_late, ax_game_late):
-        ax.set_title(f"Late μ\n{late_start}–{late_end}", pad=6)
+        ax.set_title(f"Late mean\n{late_start}–{late_end}", pad=6)
         ax.tick_params(axis="both", length=0)
         for spine in ax.spines.values():
             spine.set_visible(True)
@@ -388,7 +442,7 @@ def plot_heatmap(
         0.13,
         (
             "Positive values indicate increased safe-action evidence relative to Base. "
-            f"Dashed boxes mark late layers {late_start}–{late_end}; side cells report "
+            f"Dashed boxes mark late layers {late_start}–{late_end}; side cells show "
             "the late-layer mean."
         ),
         ha="left",
