@@ -20,3 +20,25 @@ The main mechanistic framing is: aggregate safe-choice rates are flat, but rewar
 ```bash
 PYTHONPATH=src python scripts/04_make_paper_figures.py
 ```
+
+## Random Game-Type Controls
+
+The random PD/Chicken controls test whether late-layer adapter separation appears beyond margin-shift-selected or categorical-disagreement subsets. Create or validate the fixed random subsets, run the existing logit-lens script, then summarize layers 21-31 with:
+
+```bash
+PYTHONPATH=src python scripts/04_make_random_control_subsets.py
+
+PYTHONPATH=src python scripts/03_logit_lens_margins.py \
+  --subset-csv outputs/behavior_full/subsets/random_pd_150.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/logit_lens_fixed/random_pd_150 \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/03_logit_lens_margins.py \
+  --subset-csv outputs/behavior_full/subsets/random_chicken_150.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/logit_lens_fixed/random_chicken_150 \
+  --models base,ut,game
+
+PYTHONPATH=src python scripts/05_summarize_control_logit_lens.py
+```
