@@ -1,0 +1,7 @@
+subset,subset_name,n,dominant_game_type,base_ut_late_drift,base_game_late_drift,ut_game_late_drift,dominant_base_adapter_drift,late_layers
+UT-favored margin shifts,top_ut_margin_shift,150,Prisoner's Dilemma,0.00028138045110438184,0.0001647722357037,0.0005114593712443091,Base–UT,21-31
+GAME-favored margin shifts,top_game_margin_shift,150,Chicken,0.0001694386287867,0.00017875165609765453,0.0003500157379841091,Base–GAME,21-31
+UT-safe / GAME-harmful,ut_safe_game_harmful,39,Prisoner's Dilemma,0.0003154714067931727,0.0002578150994270818,0.0007836289375765909,Base–UT,21-31
+GAME-safe / UT-harmful,game_safe_ut_harmful,39,Chicken,0.0002396304070398727,0.00017641446505541817,0.00047453494996503636,Base–UT,21-31
+Random Prisoner's Dilemma,random_pd_150,150,Prisoner's Dilemma,0.0001967818785818,0.00014451586982674547,0.00034011743131978183,Base–UT,21-31
+Random Chicken,random_chicken_150,150,Chicken,0.0001735143219279091,0.0001540114323936273,0.0003026917111128,Base–UT,21-31

@@ -36,3 +36,6 @@ data/**/*.parquet
 # Tooling
 wandb/
 .ipynb_checkpoints/
+
+# Large representation-drift hidden-state tensors
+outputs/representation_drift/**/*.pt

@@ -1,0 +1,20 @@
+{
+  "subset_csv": "outputs/behavior_full/subsets/top_game_margin_shift.csv",
+  "subset_name": "top_game_margin_shift",
+  "n_examples": 150,
+  "models": [
+    "base",
+    "ut",
+    "game"
+  ],
+  "config_path": "configs/eval.yaml",
+  "torch_dtype": "bfloat16",
+  "device_map": "auto",
+  "load_in_4bit": false,
+  "load_in_8bit": false,
+  "use_chat_template": false,
+  "layers": "all",
+  "normalize_hidden": false,
+  "hidden_state_interpretation": "Layer indices are the hidden_state tuple indices returned by Hugging Face models: layer 0 is the embedding output, and layers 1..L are transformer block outputs. This experiment stores only the final prompt-token hidden state for each layer.",
+  "created_at": "2026-05-04T15:15:25.687248+00:00"
+}
