@@ -2,8 +2,10 @@
 
 Layerwise logit-lens margins measure how strongly each intermediate layer's
 final-token hidden state linearly supports the safe option over the harmful
-option after applying the model's final normalization and LM head. This is a
-diagnostic of decision-evidence trajectories, not a causal intervention.
+option. Intermediate residual streams are passed through the model's final
+normalization before unembedding, but the last hidden-state entry is treated as
+already final-normalized for Qwen/LLaMA-style Hugging Face decoder models. This
+is a diagnostic of decision-evidence trajectories, not a causal intervention.
 """
 
 from __future__ import annotations
@@ -98,13 +100,14 @@ def project_hidden_states_to_ab_logits(
     final_norm: Any | None,
     lm_head: Any,
     token_ids: dict[str, int],
+    apply_final_norm: bool = True,
 ) -> list[tuple[float, float]]:
     """Project a batch of final-token hidden states to only A/B logits."""
 
     import torch
 
     hidden = hidden_state_batch
-    if final_norm is not None:
+    if apply_final_norm and final_norm is not None:
         norm_params = list(final_norm.parameters())
         if norm_params:
             hidden = hidden.to(norm_params[0].device)
@@ -139,7 +142,14 @@ def compute_batch_layer_margins(
     final_norm: Any | None,
     lm_head: Any,
 ) -> list[list[dict[str, float | int | str]]]:
-    """Compute layerwise A/B logits and safe margins for each prompt in a batch."""
+    """Compute layerwise A/B logits and safe margins for each prompt in a batch.
+
+    Layer 0 is the embedding output, layers 1..L are transformer block outputs,
+    and the last hidden-state entry is assumed to already include the model's
+    final normalization for Qwen/LLaMA-style HF decoder models. Therefore the
+    last layer skips the extra final norm. Its margin should closely match the
+    behavioral final-logit safe margin when prompts and A/B token ids match.
+    """
 
     import torch
 
@@ -173,17 +183,20 @@ def compute_batch_layer_margins(
     per_example: list[list[dict[str, float | int | str]]] = [
         [] for _ in range(len(prompts))
     ]
+    num_layers = len(hidden_states)
     for layer_idx, layer_hidden in enumerate(hidden_states):
         final_token_hidden = layer_hidden[
             batch_indices.to(layer_hidden.device),
             last_indices.to(layer_hidden.device),
             :,
         ]
+        apply_norm = final_norm is not None and layer_idx != num_layers - 1
         ab_logits = project_hidden_states_to_ab_logits(
             final_token_hidden,
             final_norm=final_norm,
             lm_head=lm_head,
             token_ids=token_ids,
+            apply_final_norm=apply_norm,
         )
         for batch_idx, (logit_a, logit_b) in enumerate(ab_logits):
             safe_label = safe_labels[batch_idx]

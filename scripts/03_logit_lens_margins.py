@@ -31,7 +31,11 @@ HIDDEN_STATE_INTERPRETATION = (
     "layer 0 is the embedding output, and layers 1..L are transformer block outputs. "
     "For each intermediate residual stream, this script applies the model's final "
     "normalization layer, typically RMSNorm for Qwen/LLaMA-style models, before "
-    "projecting through the LM head. This is a normed logit lens, not a tuned lens."
+    "projecting through the LM head. The final hidden-state entry is assumed to "
+    "already be final-normalized for Qwen/LLaMA-style HF decoder models, so final_norm "
+    "is not applied again at the last layer. The last-layer logit-lens margin should "
+    "therefore closely match the behavioral final-logit safe margin when prompts and "
+    "A/B token ids match. This is a normed logit lens, not a tuned lens."
 )
 
 
