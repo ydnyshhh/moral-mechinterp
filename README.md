@@ -86,3 +86,11 @@ PYTHONPATH=src python scripts/06_representation_drift.py \
 
 PYTHONPATH=src python scripts/07_summarize_representation_drift.py
 ```
+
+## Adapter-Delta Logit Lens
+
+Adapter-delta logit-lens subtracts the Base safe-margin trajectory from each adapter trajectory. This isolates the adapter-induced readout shift. Positive values mean the adapter increases safe-action evidence relative to Base; negative values mean it decreases safe-action evidence relative to Base. Late-layer summaries average layers 21-31, excluding layer 32 because layer 32 recovers the final behavioral A/B margin.
+
+```bash
+PYTHONPATH=src python scripts/08_plot_adapter_delta_logit_lens.py
+```
