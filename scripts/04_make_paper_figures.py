@@ -2,21 +2,33 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from textwrap import fill
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from moral_mechinterp.constants import MODEL_COLORS, MODEL_LABELS, MODEL_MARKERS, MODEL_ORDER
-from moral_mechinterp.plot_style import apply_paper_style, despine, panel_label, save_figure
+from moral_mechinterp.plot_style import apply_paper_style, despine, save_figure
 
 PANEL_SPECS = {
-    "top_ut_margin_shift": "UT-favored margin shifts",
-    "top_game_margin_shift": "GAME-favored margin shifts",
-    "ut_safe_game_harmful": "UT-safe / GAME-harmful disagreements",
-    "game_safe_ut_harmful": "GAME-safe / UT-harmful disagreements",
+    "top_ut_margin_shift": {
+        "figure_title": "UT-favored margin shifts",
+        "table_label": "UT-favored margin shifts",
+    },
+    "top_game_margin_shift": {
+        "figure_title": "GAME-favored margin shifts",
+        "table_label": "GAME-favored margin shifts",
+    },
+    "ut_safe_game_harmful": {
+        "figure_title": "UT-safe / GAME-harmful",
+        "table_label": "UT-safe / GAME-harmful disagreements",
+    },
+    "game_safe_ut_harmful": {
+        "figure_title": "GAME-safe / UT-harmful",
+        "table_label": "GAME-safe / UT-harmful disagreements",
+    },
 }
+PANEL_LETTERS = ("A", "B", "C", "D")
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         "--table-path",
         type=Path,
         default=Path("outputs/tables_full/logit_lens_late_layer_separation.csv"),
+    )
+    parser.add_argument(
+        "--paper-table-path",
+        type=Path,
+        default=Path("outputs/tables_full/logit_lens_late_layer_paper_table.csv"),
     )
     parser.add_argument(
         "--control-output-dir",
@@ -77,6 +94,15 @@ def load_all_summaries(logit_lens_dir: Path) -> dict[str, pd.DataFrame]:
     }
 
 
+def panel_n_examples(summary: pd.DataFrame) -> int | None:
+    if "n" not in summary.columns:
+        return None
+    values = pd.to_numeric(summary["n"], errors="coerce").dropna()
+    if values.empty:
+        return None
+    return int(values.max())
+
+
 def plot_combined_logit_lens(
     summaries: dict[str, pd.DataFrame],
     *,
@@ -97,7 +123,7 @@ def plot_combined_logit_lens(
     fig, axes = plt.subplots(
         2,
         2,
-        figsize=(7.4, 5.8),
+        figsize=(7.25, 5.35),
         sharex=False,
         sharey=False,
     )
@@ -105,7 +131,7 @@ def plot_combined_logit_lens(
 
     handles = []
     labels = []
-    for panel_idx, (subset_name, panel_title) in enumerate(PANEL_SPECS.items()):
+    for panel_idx, (subset_name, panel_spec) in enumerate(PANEL_SPECS.items()):
         ax = axes_flat[panel_idx]
         summary = summaries[subset_name]
         for model_key in MODEL_ORDER:
@@ -139,7 +165,11 @@ def plot_combined_logit_lens(
                 labels.append(MODEL_LABELS[model_key])
 
         ax.axhline(0, color="#2A2A2A", linewidth=0.75, linestyle=(0, (3, 2)))
-        ax.set_title(fill(panel_title, width=34))
+        title = f"{PANEL_LETTERS[panel_idx]}. {panel_spec['figure_title']}"
+        n_examples = panel_n_examples(summary)
+        if n_examples is not None:
+            title = f"{title} (n={n_examples})"
+        ax.set_title(title)
         ax.set_ylim(y_low - pad, y_high + pad)
         ax.set_xlim(-1.5, 33.5)
         ax.set_xticks([0, 10, 20, 30])
@@ -147,30 +177,39 @@ def plot_combined_logit_lens(
         ax.tick_params(axis="x", labelbottom=True)
         ax.tick_params(axis="y", labelleft=True)
         despine(ax)
-        panel_label(ax, chr(ord("A") + panel_idx))
 
     for ax in axes[1, :]:
         ax.set_xlabel("Layer")
-    for ax in axes[:, 0]:
-        ax.set_ylabel("Safe-action margin")
+
+    fig.supylabel("Mean safe-action logit-lens margin", x=0.015, fontsize=9)
 
     fig.legend(
         handles,
         labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.02),
+        bbox_to_anchor=(0.5, 0.965),
         ncol=3,
         frameon=False,
     )
     fig.text(
         0.5,
-        -0.02,
-        "Layer 0 is the embedding output; layer 32 recovers the actual behavioral A/B margin.",
+        0.025,
+        (
+            "Panels C–D show categorical disagreement subsets. Layer 0 is the embedding output; "
+            "layer 32 recovers the behavioral A/B margin."
+        ),
         ha="center",
-        va="top",
+        va="bottom",
         fontsize=8.2,
     )
-    fig.subplots_adjust(top=0.88, bottom=0.14, wspace=0.23, hspace=0.48)
+    fig.subplots_adjust(
+        left=0.08,
+        right=0.985,
+        top=0.885,
+        bottom=0.13,
+        wspace=0.24,
+        hspace=0.4,
+    )
     return save_figure(fig, output_dir / "logit_lens_combined_2x2")
 
 
@@ -188,7 +227,7 @@ def make_late_layer_table(
     late_layer_end: int,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
-    for subset_name, panel_title in PANEL_SPECS.items():
+    for subset_name, panel_spec in PANEL_SPECS.items():
         layer_df = read_layer_margins(logit_lens_dir, subset_name)
         late = layer_df[
             (layer_df["layer"] >= late_layer_start)
@@ -202,7 +241,7 @@ def make_late_layer_table(
         winner = max(model_margins, key=lambda key: model_margins[key])
         rows.append(
             {
-                "subset": panel_title,
+                "subset": panel_spec["table_label"],
                 "subset_name": subset_name,
                 "n": int(layer_df["id"].nunique()),
                 "dominant_game_type": dominant_game_type(layer_df),
@@ -216,6 +255,45 @@ def make_late_layer_table(
             }
         )
     return pd.DataFrame(rows)
+
+
+def make_paper_late_layer_table(detailed_table: pd.DataFrame) -> pd.DataFrame:
+    paper = detailed_table[
+        ["subset_name", "n", "ut_minus_base", "game_minus_base", "winner", "late_layers"]
+    ].copy()
+    paper["subset"] = paper["subset_name"].map(
+        {
+            subset_name: str(panel_spec["figure_title"])
+            for subset_name, panel_spec in PANEL_SPECS.items()
+        }
+    )
+    paper = paper[
+        ["subset", "n", "ut_minus_base", "game_minus_base", "winner", "late_layers"]
+    ]
+    return paper.rename(
+        columns={
+            "ut_minus_base": "ut_minus_base_late",
+            "game_minus_base": "game_minus_base_late",
+        }
+    )
+
+
+def write_markdown_table(table: pd.DataFrame, path: Path) -> None:
+    lines = [
+        "| Subset | n | UT-Base late | GAME-Base late | Winner | Layers |",
+        "|---|---:|---:|---:|---|---|",
+    ]
+    for row in table.itertuples(index=False):
+        lines.append(
+            "| "
+            f"{row.subset} | "
+            f"{row.n} | "
+            f"{row.ut_minus_base_late:+.3f} | "
+            f"{row.game_minus_base_late:+.3f} | "
+            f"{row.winner} | "
+            f"{row.late_layers} |"
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def sample_control_subsets(
@@ -260,6 +338,11 @@ def main() -> None:
     args.table_path.parent.mkdir(parents=True, exist_ok=True)
     table.to_csv(args.table_path, index=False)
 
+    paper_table = make_paper_late_layer_table(table)
+    args.paper_table_path.parent.mkdir(parents=True, exist_ok=True)
+    paper_table.to_csv(args.paper_table_path, index=False)
+    write_markdown_table(paper_table, args.paper_table_path.with_suffix(".md"))
+
     control_paths: list[Path] = []
     if not args.no_control_subsets:
         control_paths = sample_control_subsets(
@@ -273,6 +356,7 @@ def main() -> None:
     for path in figure_paths:
         print(f"  {path}")
     print(f"Wrote late-layer separation table: {args.table_path}")
+    print(f"Wrote paper late-layer table: {args.paper_table_path}")
     if control_paths:
         print("Wrote random control subset CSVs:")
         for path in control_paths:

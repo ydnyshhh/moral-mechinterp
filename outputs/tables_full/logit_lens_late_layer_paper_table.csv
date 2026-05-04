@@ -1,0 +1,5 @@
+subset,n,ut_minus_base_late,game_minus_base_late,winner,late_layers
+UT-favored margin shifts,150,0.317324438384085,-0.1570490079937561,UT,21-31
+GAME-favored margin shifts,150,-0.10319796475497159,0.15844752456202651,GAME,21-31
+UT-safe / GAME-harmful,39,0.40780685887192236,-0.32368825143311686,UT,21-31
+GAME-safe / UT-harmful,39,-0.34363788880390445,0.2314805406512636,GAME,21-31

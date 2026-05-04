@@ -15,7 +15,7 @@ PYTHONPATH=src python scripts/03_logit_lens_margins.py --subset-csv outputs/beha
 
 ## Paper Figure
 
-The main mechanistic framing is: aggregate safe-choice rates are flat, but reward adapters create objective-specific late-layer decision-evidence shifts. Regenerate the combined 2x2 logit-lens figure, late-layer separation table, and random PD/Chicken control subset CSVs with:
+The main mechanistic framing is: aggregate safe-choice rates are flat, but reward adapters create objective-specific late-layer decision-evidence shifts. Interpret the plot as relative separation in the final third of the network, not as evidence for a single moral layer. Regenerate the combined 2x2 logit-lens figure, late-layer separation tables, and random PD/Chicken control subset CSVs with:
 
 ```bash
 PYTHONPATH=src python scripts/04_make_paper_figures.py
