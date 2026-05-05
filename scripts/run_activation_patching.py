@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-DEFAULT_LAYERS = "0,4,8,12,16,20,22,23,24,25,26,27,28,29,30,31,32,final_norm"
+DEFAULT_LAYERS = "0,4,8,12,16,20,21,22,23,24,25,26,27,28,29,30,31,32,final_norm"
 DEFAULT_SANITY_EXAMPLES = 8
 DEFAULT_SUBSETS = (
     "random_pd_150",
