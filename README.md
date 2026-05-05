@@ -59,6 +59,8 @@ Adapter-delta logit lens subtracts the Base safe-margin trajectory from each ada
 
 Representation drift compares final prompt-token hidden states with pairwise cosine drift.
 
+Activation patching tests causality directly by copying each source example's final-token residual state into the matched target forward pass. This is not an averaged direction-vector intervention; future direction-vector tests should estimate directions on one split, test on held-out examples, and sweep the intervention scale.
+
 | Subset | n | UT−Base margin | GAME−Base margin | GAME−UT margin | Base–UT drift | Base–GAME drift | UT–GAME drift |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | UT-favored margin shifts | 150 | +0.317 | -0.157 | -0.474 | 0.00028 | 0.00016 | 0.00051 |
@@ -99,6 +101,7 @@ Main figures:
 | Representation drift | `scripts/06_representation_drift.py`, `scripts/07_summarize_representation_drift.py` | Pairwise layerwise cosine drift. |
 | Adapter deltas | `scripts/08_plot_adapter_delta_logit_lens.py`, `scripts/09_plot_adapter_delta_heatmap.py` | Base-subtracted adapter effects. |
 | Effect summary | `scripts/10_plot_late_layer_effect_summary_heatmap.py` | Compact late-layer margin + drift heatmap. |
+| Activation patching | `scripts/run_activation_patching.py` | Causal final-token residual patching between Base and adapters. |
 
 ## Reproduction
 
@@ -148,6 +151,15 @@ PYTHONPATH=src python scripts/07_summarize_representation_drift.py
 PYTHONPATH=src python scripts/08_plot_adapter_delta_logit_lens.py
 PYTHONPATH=src python scripts/09_plot_adapter_delta_heatmap.py
 PYTHONPATH=src python scripts/10_plot_late_layer_effect_summary_heatmap.py
+```
+
+Run activation patching on the default priority subsets:
+
+```bash
+PYTHONPATH=src python scripts/run_activation_patching.py \
+  --config configs/eval.yaml \
+  --data-jsonl data/gtharmbench_balanced.jsonl \
+  --output-dir artifacts/patching
 ```
 
 ## Compute Notes
