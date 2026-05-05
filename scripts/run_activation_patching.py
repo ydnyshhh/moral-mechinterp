@@ -8,7 +8,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-DEFAULT_LAYERS = "0,4,8,12,16,20,21,22,23,24,25,26,27,28,29,30,31,32"
+DEFAULT_LAYERS = "0,4,8,12,16,20,22,23,24,25,26,27,28,29,30,31,32,final_norm"
+DEFAULT_SANITY_EXAMPLES = 8
 DEFAULT_SUBSETS = (
     "random_pd_150",
     "random_chicken_150",
@@ -76,6 +77,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--save-every", type=int, default=25)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--no-plot", action="store_true")
+    parser.add_argument(
+        "--sanity-check",
+        action="store_true",
+        help=(
+            "Run a 5-10 example hook sanity check over embedding, late, final-block, "
+            "and final-norm sites before launching a full experiment."
+        ),
+    )
+    parser.add_argument("--sanity-examples", type=int, default=DEFAULT_SANITY_EXAMPLES)
+    parser.add_argument(
+        "--include-null-controls",
+        action="store_true",
+        help=(
+            "Also run Base-to-Base, UT-to-UT, and GAME-to-GAME null patch controls. "
+            "Sanity-check mode always enables these controls."
+        ),
+    )
+    parser.add_argument(
+        "--include-shuffled-control",
+        action="store_true",
+        help=(
+            "Also patch adapter activations from a different example into Base. "
+            "This is a reviewer-facing mismatch control and increases runtime."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -98,11 +124,15 @@ def parse_csv_list(raw: str) -> list[str]:
 
 
 def parse_layers(raw: str, *, n_transformer_layers: int) -> list[int]:
+    final_norm_layer = n_transformer_layers + 1
     if raw.strip().lower() == "all":
-        return list(range(n_transformer_layers + 1))
+        return list(range(final_norm_layer + 1))
 
     layers: set[int] = set()
     for part in parse_csv_list(raw):
+        if part.lower() in {"final_norm", "final-norm", "norm", "readout"}:
+            layers.add(final_norm_layer)
+            continue
         if "-" in part:
             start_text, end_text = part.split("-", 1)
             start = int(start_text)
@@ -113,12 +143,53 @@ def parse_layers(raw: str, *, n_transformer_layers: int) -> list[int]:
         else:
             layers.add(int(part))
 
-    invalid = [layer for layer in sorted(layers) if layer < 0 or layer > n_transformer_layers]
+    invalid = [layer for layer in sorted(layers) if layer < 0 or layer > final_norm_layer]
     if invalid:
         raise ValueError(
-            f"Requested layer(s) {invalid} are outside valid range 0-{n_transformer_layers}."
+            f"Requested layer(s) {invalid} are outside valid range 0-{final_norm_layer}. "
+            f"For this model, layer {final_norm_layer} is the final norm/readout site."
         )
     return sorted(layers)
+
+
+def active_adapter_state(model: Any) -> str:
+    """Return a compact PEFT active-adapter debug string."""
+
+    candidates = (
+        getattr(model, "active_adapter", None),
+        getattr(model, "active_adapters", None),
+    )
+    for value in candidates:
+        if value is None:
+            continue
+        if callable(value):
+            try:
+                value = value()
+            except TypeError:
+                continue
+        return str(value)
+    return "unavailable"
+
+
+def sanity_layers(*, n_transformer_layers: int) -> list[int]:
+    """Small diagnostic layer set under the explicit indexing convention.
+
+    0 is embedding output. 1..n are transformer block outputs. n+1 is final norm.
+    For 32-block Qwen models this returns 0, 21, 31, 32, 33.
+    """
+
+    requested = {0, 21, 31, n_transformer_layers, n_transformer_layers + 1}
+    return sorted(layer for layer in requested if 0 <= layer <= n_transformer_layers + 1)
+
+
+def layer_site(layer: int, *, n_transformer_layers: int) -> str:
+    if layer == 0:
+        return "embedding_output"
+    if 1 <= layer <= n_transformer_layers:
+        return f"block_{layer - 1}_output"
+    if layer == n_transformer_layers + 1:
+        return "final_norm_output"
+    return "unknown"
 
 
 def row_to_example(row: Any) -> Any:
@@ -334,10 +405,14 @@ def get_final_norm_module(model: Any) -> Any:
 def get_patch_module(model: Any, *, layer: int, n_transformer_layers: int) -> Any:
     if layer == 0:
         return get_embedding_module(model)
-    if layer == n_transformer_layers:
+    if 1 <= layer <= n_transformer_layers:
+        layers = get_transformer_layers(model)
+        return layers[layer - 1]
+    if layer == n_transformer_layers + 1:
         return get_final_norm_module(model)
-    layers = get_transformer_layers(model)
-    return layers[layer - 1]
+    raise ValueError(
+        f"Invalid patch layer {layer}; expected 0..{n_transformer_layers + 1}."
+    )
 
 
 def output_tensor_and_rebuilder(output: Any):
@@ -567,10 +642,13 @@ def patch_result_record(
     adapter_key: str,
     patch_direction: str,
     layer: int,
+    layer_site_name: str,
     clean: dict[str, Any],
     patched_score: dict[str, Any],
     delta_threshold: float,
     eps: float,
+    source_example_id: str | None = None,
+    is_mismatched_control: bool = False,
 ) -> dict[str, Any]:
     adapter_label = ADAPTER_LABELS[adapter_key]
     m_base = float(clean["m_base"])
@@ -578,8 +656,14 @@ def patch_result_record(
     m_patched = float(patched_score["safe_margin"])
     delta_adapter = m_adapter - m_base
     denominator_ok = abs(delta_adapter) > delta_threshold
+    if delta_adapter > 0:
+        adapter_effect_sign = "positive"
+    elif delta_adapter < 0:
+        adapter_effect_sign = "negative"
+    else:
+        adapter_effect_sign = "zero"
 
-    if patch_direction == "A_to_Base":
+    if patch_direction in {"A_to_Base", "A_shuffled_to_Base"}:
         raw_patch_effect = m_patched - m_base
     elif patch_direction == "Base_to_A":
         raw_patch_effect = m_adapter - m_patched
@@ -588,7 +672,10 @@ def patch_result_record(
 
     fraction = None
     if denominator_ok:
-        fraction = raw_patch_effect / (delta_adapter + eps)
+        fraction = raw_patch_effect / (delta_adapter + math.copysign(eps, delta_adapter))
+    expected_direction_recovered = raw_patch_effect * delta_adapter > 0
+    source_recovery_error = m_patched - m_adapter
+    base_recovery_error = m_patched - m_base
 
     return {
         "example_id": example.id,
@@ -600,18 +687,77 @@ def patch_result_record(
         "adapter_key": adapter_key,
         "patch_direction": patch_direction,
         "layer": layer,
+        "layer_site": layer_site_name,
+        "is_null_control": False,
+        "is_mismatched_control": is_mismatched_control,
+        "source_example_id": source_example_id or example.id,
         "m_base": m_base,
         "m_adapter": m_adapter,
         "m_patched": m_patched,
         "delta_adapter": delta_adapter,
+        "source_target_gap_before": delta_adapter,
         "raw_patch_effect": raw_patch_effect,
         "recovered_or_removed_fraction": fraction,
+        "adapter_effect_sign": adapter_effect_sign,
+        "expected_direction_recovered": expected_direction_recovered,
+        "source_recovery_error": source_recovery_error,
+        "base_recovery_error": base_recovery_error,
         "denominator_ok": denominator_ok,
         "safe_choice_base": bool(clean["base_safe_choice"]),
         "safe_choice_adapter": bool(clean[f"{adapter_key}_safe_choice"]),
         "safe_choice_patched": bool(patched_score["safe_choice"]),
         "choice_base": clean["base_choice"],
         "choice_adapter": clean[f"{adapter_key}_choice"],
+        "choice_patched": patched_score["choice"],
+    }
+
+
+def null_patch_result_record(
+    *,
+    example: Any,
+    subset_name: str,
+    mode: str,
+    layer: int,
+    layer_site_name: str,
+    clean: dict[str, Any],
+    patched_score: dict[str, Any],
+) -> dict[str, Any]:
+    mode_label = "Base" if mode == "base" else ADAPTER_LABELS[mode]
+    m_base = float(clean["m_base"])
+    m_clean = float(clean[f"m_{mode}"])
+    m_patched = float(patched_score["safe_margin"])
+    patch_error = m_patched - m_clean
+    return {
+        "example_id": example.id,
+        "subset_name": subset_name,
+        "subset_label": SUBSET_LABELS.get(subset_name, subset_name),
+        "game_type": example.game_type,
+        "safe_label": example.safe_label,
+        "adapter_name": mode_label,
+        "adapter_key": mode,
+        "patch_direction": f"{mode_label}_to_{mode_label}",
+        "layer": layer,
+        "layer_site": layer_site_name,
+        "is_null_control": True,
+        "is_mismatched_control": False,
+        "source_example_id": example.id,
+        "m_base": m_base,
+        "m_adapter": m_clean,
+        "m_patched": m_patched,
+        "delta_adapter": m_clean - m_base,
+        "source_target_gap_before": 0.0,
+        "raw_patch_effect": patch_error,
+        "recovered_or_removed_fraction": None,
+        "adapter_effect_sign": "null_control",
+        "expected_direction_recovered": None,
+        "source_recovery_error": patch_error,
+        "base_recovery_error": m_patched - m_base,
+        "denominator_ok": False,
+        "safe_choice_base": bool(clean["base_safe_choice"]),
+        "safe_choice_adapter": bool(clean[f"{mode}_safe_choice"]),
+        "safe_choice_patched": bool(patched_score["safe_choice"]),
+        "choice_base": clean["base_choice"],
+        "choice_adapter": clean[f"{mode}_choice"],
         "choice_patched": patched_score["choice"],
     }
 
@@ -639,7 +785,16 @@ def summarize_patch_results(result_df: Any, *, seed: int) -> Any:
         return pd.DataFrame()
 
     rows: list[dict[str, Any]] = []
-    group_cols = ["adapter_name", "patch_direction", "subset_name", "subset_label", "layer"]
+    group_cols = [
+        "adapter_name",
+        "patch_direction",
+        "subset_name",
+        "subset_label",
+        "layer",
+        "layer_site",
+        "is_null_control",
+        "is_mismatched_control",
+    ]
     for group_key, group in result_df.groupby(group_cols, sort=True, dropna=False):
         raw = pd.to_numeric(group["raw_patch_effect"], errors="coerce").dropna()
         denom_ok = group[group["denominator_ok"].astype(bool)]
@@ -656,6 +811,9 @@ def summarize_patch_results(result_df: Any, *, seed: int) -> Any:
                 "subset_name": group_key[2],
                 "subset_label": group_key[3],
                 "layer": int(group_key[4]),
+                "layer_site": group_key[5],
+                "is_null_control": bool(group_key[6]),
+                "is_mismatched_control": bool(group_key[7]),
                 "n": int(len(group)),
                 "n_denominator_ok": int(len(frac)),
                 "mean_m_base": pd.to_numeric(group["m_base"], errors="coerce").mean(),
@@ -668,6 +826,18 @@ def summarize_patch_results(result_df: Any, *, seed: int) -> Any:
                 "mean_raw_patch_effect": raw.mean(),
                 "mean_recovered_or_removed_fraction": frac.mean(),
                 "median_recovered_or_removed_fraction": frac.median(),
+                "mean_source_recovery_error": pd.to_numeric(
+                    group["source_recovery_error"],
+                    errors="coerce",
+                ).mean(),
+                "mean_base_recovery_error": pd.to_numeric(
+                    group["base_recovery_error"],
+                    errors="coerce",
+                ).mean(),
+                "expected_direction_recovered_rate": pd.to_numeric(
+                    denom_ok["expected_direction_recovered"],
+                    errors="coerce",
+                ).mean(),
                 "raw_patch_effect_ci_low": raw_low,
                 "raw_patch_effect_ci_high": raw_high,
                 "fraction_ci_low": frac_low,
@@ -694,6 +864,8 @@ def run_activation_patching(
     output_dir: Path,
     save_every: int,
     seed: int,
+    include_null_controls: bool,
+    include_shuffled_control: bool,
 ) -> Any:
     from tqdm.auto import tqdm
 
@@ -705,19 +877,79 @@ def run_activation_patching(
         math.ceil(len(examples) / batch_size) * len(adapters) * len(PATCH_DIRECTIONS) * len(layers)
         for examples in subsets.values()
     )
+    if include_null_controls:
+        total_steps += sum(
+            math.ceil(len(examples) / batch_size) * 3 * len(layers)
+            for examples in subsets.values()
+        )
+    if include_shuffled_control:
+        total_steps += sum(
+            math.ceil(len(examples) / batch_size) * len(adapters) * len(layers)
+            for examples in subsets.values()
+            if len(examples) > 1
+        )
     progress = tqdm(total=total_steps, desc="Activation patching", unit="batch")
 
     for subset_name, examples in subsets.items():
         for layer in layers:
-            for adapter_key in adapters:
-                for batch_examples in batched(examples, batch_size):
-                    prompts = [
-                        build_prompt(tokenizer, example, config)
-                        for example in batch_examples
-                    ]
-                    safe_labels = [example.safe_label for example in batch_examples]
-                    inputs = tokenize_prompts(tokenizer, prompts, model)
+            layer_site_name = layer_site(layer, n_transformer_layers=n_transformer_layers)
+            batches = list(batched(examples, batch_size))
+            for batch_index, batch_examples in enumerate(batches):
+                prompts = [
+                    build_prompt(tokenizer, example, config)
+                    for example in batch_examples
+                ]
+                safe_labels = [example.safe_label for example in batch_examples]
+                inputs = tokenize_prompts(tokenizer, prompts, model)
 
+                base_activation = capture_layer_activation(
+                    model=model,
+                    inputs=inputs,
+                    mode="base",
+                    layer=layer,
+                    n_transformer_layers=n_transformer_layers,
+                )
+                if include_null_controls:
+                    for mode in ("base", "ut", "game"):
+                        clean_activation = base_activation
+                        if mode != "base":
+                            clean_activation = capture_layer_activation(
+                                model=model,
+                                inputs=inputs,
+                                mode=mode,
+                                layer=layer,
+                                n_transformer_layers=n_transformer_layers,
+                            )
+                        patched_clean_scores = patched_forward_ab_scores(
+                            model=model,
+                            inputs=inputs,
+                            target_mode=mode,
+                            layer=layer,
+                            n_transformer_layers=n_transformer_layers,
+                            source_activation=clean_activation,
+                            token_ids=token_ids,
+                            safe_labels=safe_labels,
+                        )
+                        for example, patched_score in zip(
+                            batch_examples,
+                            patched_clean_scores,
+                            strict=True,
+                        ):
+                            records.append(
+                                null_patch_result_record(
+                                    example=example,
+                                    subset_name=subset_name,
+                                    mode=mode,
+                                    layer=layer,
+                                    layer_site_name=layer_site_name,
+                                    clean=clean_by_id[example.id],
+                                    patched_score=patched_score,
+                                )
+                            )
+                        completed_batches += 1
+                        progress.update(1)
+
+                for adapter_key in adapters:
                     adapter_activation = capture_layer_activation(
                         model=model,
                         inputs=inputs,
@@ -747,6 +979,7 @@ def run_activation_patching(
                                 adapter_key=adapter_key,
                                 patch_direction="A_to_Base",
                                 layer=layer,
+                                layer_site_name=layer_site_name,
                                 clean=clean_by_id[example.id],
                                 patched_score=patched_score,
                                 delta_threshold=delta_threshold,
@@ -756,13 +989,6 @@ def run_activation_patching(
                     completed_batches += 1
                     progress.update(1)
 
-                    base_activation = capture_layer_activation(
-                        model=model,
-                        inputs=inputs,
-                        mode="base",
-                        layer=layer,
-                        n_transformer_layers=n_transformer_layers,
-                    )
                     patched_adapter_scores = patched_forward_ab_scores(
                         model=model,
                         inputs=inputs,
@@ -785,6 +1011,7 @@ def run_activation_patching(
                                 adapter_key=adapter_key,
                                 patch_direction="Base_to_A",
                                 layer=layer,
+                                layer_site_name=layer_site_name,
                                 clean=clean_by_id[example.id],
                                 patched_score=patched_score,
                                 delta_threshold=delta_threshold,
@@ -793,6 +1020,59 @@ def run_activation_patching(
                         )
                     completed_batches += 1
                     progress.update(1)
+
+                    if include_shuffled_control and len(examples) > 1:
+                        start = batch_index * batch_size
+                        source_examples = [
+                            examples[(start + offset + 1) % len(examples)]
+                            for offset in range(len(batch_examples))
+                        ]
+                        source_prompts = [
+                            build_prompt(tokenizer, example, config)
+                            for example in source_examples
+                        ]
+                        source_inputs = tokenize_prompts(tokenizer, source_prompts, model)
+                        shuffled_activation = capture_layer_activation(
+                            model=model,
+                            inputs=source_inputs,
+                            mode=adapter_key,
+                            layer=layer,
+                            n_transformer_layers=n_transformer_layers,
+                        )
+                        patched_shuffled_scores = patched_forward_ab_scores(
+                            model=model,
+                            inputs=inputs,
+                            target_mode="base",
+                            layer=layer,
+                            n_transformer_layers=n_transformer_layers,
+                            source_activation=shuffled_activation,
+                            token_ids=token_ids,
+                            safe_labels=safe_labels,
+                        )
+                        for example, source_example, patched_score in zip(
+                            batch_examples,
+                            source_examples,
+                            patched_shuffled_scores,
+                            strict=True,
+                        ):
+                            records.append(
+                                patch_result_record(
+                                    example=example,
+                                    subset_name=subset_name,
+                                    adapter_key=adapter_key,
+                                    patch_direction="A_shuffled_to_Base",
+                                    layer=layer,
+                                    layer_site_name=layer_site_name,
+                                    clean=clean_by_id[example.id],
+                                    patched_score=patched_score,
+                                    delta_threshold=delta_threshold,
+                                    eps=eps,
+                                    source_example_id=source_example.id,
+                                    is_mismatched_control=True,
+                                )
+                            )
+                        completed_batches += 1
+                        progress.update(1)
 
                     if save_every > 0 and completed_batches % save_every == 0:
                         save_patch_outputs(records, output_dir=output_dir, seed=seed)
@@ -803,31 +1083,52 @@ def run_activation_patching(
 
 def line_label(row: Any) -> str:
     adapter = row.adapter_name
+    if row.patch_direction == "A_shuffled_to_Base":
+        return f"{adapter} shuffled->Base"
+    if row.patch_direction == "Base_to_A":
+        return f"Base->{adapter}"
     if row.patch_direction == "A_to_Base":
         return f"{adapter}→Base"
     return f"Base→{adapter}"
 
 
-def plot_summary(summary_df: Any, *, output_dir: Path, font_family: str) -> None:
+def plot_summary(
+    summary_df: Any,
+    *,
+    output_dir: Path,
+    font_family: str,
+    final_norm_layer: int,
+) -> None:
     if summary_df.empty:
         return
+    primary_df = summary_df[
+        (~summary_df["is_null_control"].astype(bool))
+        & (~summary_df["is_mismatched_control"].astype(bool))
+    ]
     plot_fraction(
-        summary_df[summary_df["patch_direction"] == "A_to_Base"],
+        primary_df[primary_df["patch_direction"] == "A_to_Base"],
         output_dir=output_dir,
         filename="fig_recovered_fraction_by_layer",
         ylabel="Recovered fraction",
         title="Adapter-to-Base recovered fraction",
         font_family=font_family,
+        final_norm_layer=final_norm_layer,
     )
     plot_fraction(
-        summary_df[summary_df["patch_direction"] == "Base_to_A"],
+        primary_df[primary_df["patch_direction"] == "Base_to_A"],
         output_dir=output_dir,
         filename="fig_removed_fraction_by_layer",
         ylabel="Removed fraction",
         title="Base-to-adapter removed fraction",
         font_family=font_family,
+        final_norm_layer=final_norm_layer,
     )
-    plot_raw_effects(summary_df, output_dir=output_dir, font_family=font_family)
+    plot_raw_effects(
+        primary_df,
+        output_dir=output_dir,
+        font_family=font_family,
+        final_norm_layer=final_norm_layer,
+    )
 
 
 def subplot_grid(n_panels: int) -> tuple[int, int]:
@@ -844,8 +1145,10 @@ def plot_fraction(
     ylabel: str,
     title: str,
     font_family: str,
+    final_norm_layer: int,
 ) -> None:
     import matplotlib.pyplot as plt
+    import numpy as np
 
     from moral_mechinterp.constants import MODEL_COLORS, MODEL_MARKERS
     from moral_mechinterp.plot_style import apply_paper_style, despine, save_figure
@@ -866,9 +1169,24 @@ def plot_fraction(
         for adapter_name, adapter_df in subset_df.groupby("adapter_name", sort=False):
             adapter_key = adapter_name.lower()
             ordered = adapter_df.sort_values("layer")
+            fraction = np.clip(
+                ordered["mean_recovered_or_removed_fraction"].to_numpy(dtype=float),
+                -2.0,
+                2.0,
+            )
+            ci_low = np.clip(
+                ordered["fraction_ci_low"].to_numpy(dtype=float),
+                -2.0,
+                2.0,
+            )
+            ci_high = np.clip(
+                ordered["fraction_ci_high"].to_numpy(dtype=float),
+                -2.0,
+                2.0,
+            )
             ax.plot(
                 ordered["layer"],
-                ordered["mean_recovered_or_removed_fraction"],
+                fraction,
                 color=MODEL_COLORS.get(adapter_key, "#252525"),
                 marker=MODEL_MARKERS.get(adapter_key, "o"),
                 linewidth=1.35,
@@ -877,15 +1195,15 @@ def plot_fraction(
             )
             ax.fill_between(
                 ordered["layer"],
-                ordered["fraction_ci_low"],
-                ordered["fraction_ci_high"],
+                ci_low,
+                ci_high,
                 color=MODEL_COLORS.get(adapter_key, "#252525"),
                 alpha=0.14,
                 linewidth=0,
             )
         ax.axhline(0, color="#2A2A2A", linewidth=0.8, linestyle=(0, (3, 2)))
-        ax.axvspan(21, 31, color="#E8E8E8", alpha=0.42, linewidth=0)
-        ax.axvline(32, color="#2A2A2A", linewidth=0.85, linestyle=(0, (2, 2)))
+        ax.axvspan(22, final_norm_layer - 1, color="#E8E8E8", alpha=0.42, linewidth=0)
+        ax.axvline(final_norm_layer, color="#2A2A2A", linewidth=0.85, linestyle=(0, (2, 2)))
         ax.set_title(str(subset_df["subset_label"].iloc[0]))
         ax.set_xlabel("Layer")
         ax.set_ylabel(ylabel)
@@ -900,7 +1218,13 @@ def plot_fraction(
     save_figure(fig, output_dir / filename)
 
 
-def plot_raw_effects(summary_df: Any, *, output_dir: Path, font_family: str) -> None:
+def plot_raw_effects(
+    summary_df: Any,
+    *,
+    output_dir: Path,
+    font_family: str,
+    final_norm_layer: int,
+) -> None:
     import matplotlib.pyplot as plt
 
     from moral_mechinterp.constants import MODEL_COLORS, MODEL_MARKERS
@@ -944,8 +1268,8 @@ def plot_raw_effects(summary_df: Any, *, output_dir: Path, font_family: str) -> 
                 linewidth=0,
             )
         ax.axhline(0, color="#2A2A2A", linewidth=0.8, linestyle=(0, (3, 2)))
-        ax.axvspan(21, 31, color="#E8E8E8", alpha=0.42, linewidth=0)
-        ax.axvline(32, color="#2A2A2A", linewidth=0.85, linestyle=(0, (2, 2)))
+        ax.axvspan(22, final_norm_layer - 1, color="#E8E8E8", alpha=0.42, linewidth=0)
+        ax.axvline(final_norm_layer, color="#2A2A2A", linewidth=0.85, linestyle=(0, (2, 2)))
         ax.set_title(str(subset_df["subset_label"].iloc[0]))
         ax.set_xlabel("Layer")
         ax.set_ylabel("Raw safe-margin change")
@@ -958,6 +1282,146 @@ def plot_raw_effects(summary_df: Any, *, output_dir: Path, font_family: str) -> 
     fig.suptitle("Raw activation-patching margin effects", y=0.995)
     fig.subplots_adjust(top=0.88, hspace=0.48, wspace=0.28)
     save_figure(fig, output_dir / "fig_raw_margin_change_by_layer")
+
+
+def mean_abs_column(df: Any, column: str) -> float | None:
+    pd = load_pandas()
+
+    if df.empty or column not in df.columns:
+        return None
+    values = pd.to_numeric(df[column], errors="coerce").dropna().abs()
+    if values.empty:
+        return None
+    return float(values.mean())
+
+
+def write_sanity_report(
+    *,
+    output_dir: Path,
+    result_df: Any,
+    final_norm_layer: int,
+    threshold: float = 1e-3,
+) -> None:
+    pd = load_pandas()
+
+    checks = [
+        {
+            "check": "UT->Base final norm recovers UT margin",
+            "filter": (
+                (result_df["adapter_key"] == "ut")
+                & (result_df["patch_direction"] == "A_to_Base")
+                & (result_df["layer"] == final_norm_layer)
+            ),
+            "column": "source_recovery_error",
+        },
+        {
+            "check": "GAME->Base final norm recovers GAME margin",
+            "filter": (
+                (result_df["adapter_key"] == "game")
+                & (result_df["patch_direction"] == "A_to_Base")
+                & (result_df["layer"] == final_norm_layer)
+            ),
+            "column": "source_recovery_error",
+        },
+        {
+            "check": "Base->UT final norm recovers Base margin",
+            "filter": (
+                (result_df["adapter_key"] == "ut")
+                & (result_df["patch_direction"] == "Base_to_A")
+                & (result_df["layer"] == final_norm_layer)
+            ),
+            "column": "base_recovery_error",
+        },
+        {
+            "check": "Base->GAME final norm recovers Base margin",
+            "filter": (
+                (result_df["adapter_key"] == "game")
+                & (result_df["patch_direction"] == "Base_to_A")
+                & (result_df["layer"] == final_norm_layer)
+            ),
+            "column": "base_recovery_error",
+        },
+        {
+            "check": "Layer 0 UT->Base has near-zero effect",
+            "filter": (
+                (result_df["adapter_key"] == "ut")
+                & (result_df["patch_direction"] == "A_to_Base")
+                & (result_df["layer"] == 0)
+            ),
+            "column": "base_recovery_error",
+        },
+        {
+            "check": "Layer 0 GAME->Base has near-zero effect",
+            "filter": (
+                (result_df["adapter_key"] == "game")
+                & (result_df["patch_direction"] == "A_to_Base")
+                & (result_df["layer"] == 0)
+            ),
+            "column": "base_recovery_error",
+        },
+        {
+            "check": "Layer 0 Base->UT has near-zero effect",
+            "filter": (
+                (result_df["adapter_key"] == "ut")
+                & (result_df["patch_direction"] == "Base_to_A")
+                & (result_df["layer"] == 0)
+            ),
+            "column": "raw_patch_effect",
+        },
+        {
+            "check": "Layer 0 Base->GAME has near-zero effect",
+            "filter": (
+                (result_df["adapter_key"] == "game")
+                & (result_df["patch_direction"] == "Base_to_A")
+                & (result_df["layer"] == 0)
+            ),
+            "column": "raw_patch_effect",
+        },
+        {
+            "check": "Null controls reproduce clean margins",
+            "filter": result_df["is_null_control"].astype(bool),
+            "column": "source_recovery_error",
+        },
+    ]
+    rows: list[dict[str, Any]] = []
+    for item in checks:
+        subset = result_df[item["filter"]]
+        mean_abs_error = mean_abs_column(subset, str(item["column"]))
+        rows.append(
+            {
+                "check": item["check"],
+                "metric_column": item["column"],
+                "n": int(len(subset)),
+                "mean_abs_error": mean_abs_error,
+                "threshold": threshold,
+                "passed": bool(mean_abs_error is not None and mean_abs_error < threshold),
+            }
+        )
+
+    report_df = pd.DataFrame(rows)
+    report_df.to_csv(output_dir / "sanity_check_report.csv", index=False)
+    markdown_lines = [
+        "| Check | n | Mean abs error | Threshold | Passed |",
+        "|---|---:|---:|---:|---|",
+    ]
+    for row in rows:
+        value = row["mean_abs_error"]
+        formatted = "NA" if value is None else f"{value:.6g}"
+        markdown_lines.append(
+            "| {check} | {n} | {mean_abs_error} | {threshold:.1e} | {passed} |".format(
+                check=row["check"],
+                n=row["n"],
+                mean_abs_error=formatted,
+                threshold=row["threshold"],
+                passed=row["passed"],
+            )
+        )
+    (output_dir / "sanity_check_report.md").write_text(
+        "\n".join(markdown_lines) + "\n",
+        encoding="utf-8",
+    )
+    print("Sanity-check report:")
+    print(report_df.to_string(index=False))
 
 
 def write_metadata(
@@ -978,15 +1442,23 @@ def write_metadata(
         "adapters": adapters,
         "layers": layers,
         "n_transformer_layers": n_transformer_layers,
+        "final_norm_layer": n_transformer_layers + 1,
         "delta_threshold": args.delta_threshold,
         "eps": args.eps,
         "batch_size": args.batch_size,
         "seed": args.seed,
+        "sanity_check": bool(args.sanity_check),
+        "sanity_examples": args.sanity_examples,
+        "include_null_controls": bool(args.include_null_controls or args.sanity_check),
+        "include_shuffled_control": bool(args.include_shuffled_control),
         "token_position": "final non-padding token: attention_mask.sum(dim=-1) - 1",
         "layer_interpretation": (
             "Layer 0 patches the embedding output. Layers 1..L patch transformer "
-            "block outputs. Layer L patches the final normalized hidden state before "
-            "the LM head and should be interpreted separately from layers 21..31."
+            "block outputs, where layer ell replaces the output of block ell-1. "
+            "Layer L+1 patches the final normalized hidden state immediately before "
+            "the LM head and is a readout sanity check, not a transformer block. "
+            "For a 32-block Qwen model, layer 32 is block 31 output and layer 33 "
+            "is final norm/readout."
         ),
     }
     with (output_dir / "run_metadata.json").open("w", encoding="utf-8") as handle:
@@ -1004,6 +1476,8 @@ def main() -> None:
     from moral_mechinterp.utils import set_seed
 
     set_seed(args.seed)
+    if args.sanity_check and args.output_dir == Path("artifacts/patching"):
+        args.output_dir = Path("artifacts/patching_sanity")
     output_dir = ensure_dir(args.output_dir)
     config = load_eval_config(args.config)
     if args.batch_size <= 0:
@@ -1018,11 +1492,21 @@ def main() -> None:
     if unknown_adapters:
         raise ValueError(f"Unknown adapter(s): {unknown_adapters}; expected ut and/or game.")
 
+    subset_names = parse_csv_list(args.subsets)
+    if args.sanity_check:
+        subset_names = subset_names[:1]
+        print(
+            f"Sanity-check mode: using subset {subset_names[0]!r}, "
+            f"{args.sanity_examples} examples, and diagnostic layers."
+        )
+
     subsets = load_subsets(
         data_jsonl=args.data_jsonl,
         subset_dir=args.subset_dir,
-        subset_names=parse_csv_list(args.subsets),
-        max_examples_per_subset=args.max_examples_per_subset,
+        subset_names=subset_names,
+        max_examples_per_subset=(
+            args.sanity_examples if args.sanity_check else args.max_examples_per_subset
+        ),
         full_sample_size=args.full_sample_size,
         include_full=args.include_full,
         seed=args.seed,
@@ -1033,8 +1517,18 @@ def main() -> None:
 
     tokenizer, model = load_base_with_adapters(config)
     try:
+        print(f"PEFT active adapter after load: {active_adapter_state(model)}")
         n_transformer_layers = len(get_transformer_layers(model))
-        layers = parse_layers(args.layers, n_transformer_layers=n_transformer_layers)
+        final_norm_layer = n_transformer_layers + 1
+        if args.sanity_check:
+            layers = sanity_layers(n_transformer_layers=n_transformer_layers)
+        else:
+            layers = parse_layers(args.layers, n_transformer_layers=n_transformer_layers)
+        print(
+            "Layer convention: 0=embedding, "
+            f"1-{n_transformer_layers}=block outputs, "
+            f"{final_norm_layer}=final norm/readout."
+        )
         token_ids = resolve_score_token_ids(
             tokenizer,
             config.score_tokens,
@@ -1067,9 +1561,23 @@ def main() -> None:
             output_dir=output_dir,
             save_every=args.save_every,
             seed=args.seed,
+            include_null_controls=args.include_null_controls or args.sanity_check,
+            include_shuffled_control=args.include_shuffled_control,
         )
-        if not args.no_plot:
-            plot_summary(summary_df, output_dir=output_dir, font_family=config.plot_font_family)
+        result_df = load_pandas().read_csv(output_dir / "activation_patching_results.csv")
+        if args.sanity_check:
+            write_sanity_report(
+                output_dir=output_dir,
+                result_df=result_df,
+                final_norm_layer=final_norm_layer,
+            )
+        if not args.no_plot and not args.sanity_check:
+            plot_summary(
+                summary_df,
+                output_dir=output_dir,
+                font_family=config.plot_font_family,
+                final_norm_layer=final_norm_layer,
+            )
         write_metadata(
             output_dir=output_dir,
             args=args,

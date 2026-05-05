@@ -59,7 +59,7 @@ Adapter-delta logit lens subtracts the Base safe-margin trajectory from each ada
 
 Representation drift compares final prompt-token hidden states with pairwise cosine drift.
 
-Activation patching tests causality directly by copying each source example's final-token residual state into the matched target forward pass. This is not an averaged direction-vector intervention; future direction-vector tests should estimate directions on one split, test on held-out examples, and sweep the intervention scale.
+Activation patching tests causality directly by copying each source example's final-token residual state into the matched target forward pass. The patching convention is explicit: layer 0 is the embedding output, layers 1..L are transformer block outputs, and layer L+1 is the final-norm readout site. For the 32-block Qwen model, layer 32 is the last block output and layer 33 is final norm. The final-norm site is reported as a sanity check, not as a transformer-layer effect. This is not an averaged direction-vector intervention; future direction-vector tests should estimate directions on one split, test on held-out examples, and sweep the intervention scale.
 
 | Subset | n | UT−Base margin | GAME−Base margin | GAME−UT margin | Base–UT drift | Base–GAME drift | UT–GAME drift |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -153,13 +153,25 @@ PYTHONPATH=src python scripts/09_plot_adapter_delta_heatmap.py
 PYTHONPATH=src python scripts/10_plot_late_layer_effect_summary_heatmap.py
 ```
 
+Before a full activation patching run, run the hook sanity check. It uses a few examples, enables null patch controls, and verifies that layer 0 has near-zero effect while the final-norm readout site recovers the source margins:
+
+```bash
+PYTHONPATH=src python scripts/run_activation_patching.py \
+  --sanity-check \
+  --config configs/eval.yaml \
+  --data-jsonl data/gtharmbench_balanced.jsonl \
+  --output-dir artifacts/patching_sanity \
+  --no-plot
+```
+
 Run activation patching on the default priority subsets:
 
 ```bash
 PYTHONPATH=src python scripts/run_activation_patching.py \
   --config configs/eval.yaml \
   --data-jsonl data/gtharmbench_balanced.jsonl \
-  --output-dir artifacts/patching
+  --output-dir artifacts/patching \
+  --include-null-controls
 ```
 
 ## Compute Notes
