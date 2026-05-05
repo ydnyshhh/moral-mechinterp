@@ -1,102 +1,155 @@
 # moral-mechinterp
 
-`moral-mechinterp` is a reproducible research scaffold for the behavioral stage of GT-HarmBench-style mechanistic interpretability. It evaluates Base, UT, and GAME Qwen models on two-choice moral and game-theoretic scenarios by scoring next-token preferences for `A` versus `B`, computing safe-action logit margins, and building disagreement sets that can anchor later analyses such as CKA, probes, logit lens, activation patching, and moral/cooperative direction studies. This repository focuses only on the behavioral foundation: clean JSONL inputs, deterministic A/B scoring, structured CSV/JSONL outputs, summary tables, and polished static figures.
+`moral-mechinterp` is a reproducible research repo for behavioral and early mechanistic analysis on the GT-HarmBench two-choice moral/game-theoretic dataset. The central result so far is:
 
-## Layerwise Logit-Lens Margins
+> Aggregate safe-choice rates are flat, but UT and GAME adapters create objective-specific late-layer safe-action margin shifts. These shifts are structured by strategic regime and occur with very small cosine representation drift, suggesting small readout-aligned perturbations rather than broad representation rewrites.
 
-Layerwise logit-lens margins measure how strongly each intermediate layer's residual stream linearly supports the safe option over the harmful option. For each intermediate residual stream, we apply the model's final RMSNorm/final normalization layer before unembedding through the LM head; this is a normed logit lens, not a tuned lens. This is not a causal intervention, but a diagnostic of decision-evidence trajectories. We use it because behavioral differences between adapters are mostly small margin shifts rather than strong binary flips.
+This is not a claim that moral RL improves aggregate alignment or that we have found moral circuits. The current evidence is diagnostic: adapter training reshapes late-layer decision evidence without producing strong binary safety gains.
+
+## Setup
 
 ```bash
-PYTHONPATH=src python scripts/03_logit_lens_margins.py --subset-csv outputs/behavior_full/subsets/top_ut_margin_shift.csv --config configs/eval.yaml --output-dir outputs/logit_lens/top_ut_margin_shift --models base,ut,game
-PYTHONPATH=src python scripts/03_logit_lens_margins.py --subset-csv outputs/behavior_full/subsets/top_game_margin_shift.csv --config configs/eval.yaml --output-dir outputs/logit_lens/top_game_margin_shift --models base,ut,game
-PYTHONPATH=src python scripts/03_logit_lens_margins.py --subset-csv outputs/behavior_full/subsets/ut_safe_game_harmful.csv --config configs/eval.yaml --output-dir outputs/logit_lens/ut_safe_game_harmful --models base,ut,game
-PYTHONPATH=src python scripts/03_logit_lens_margins.py --subset-csv outputs/behavior_full/subsets/game_safe_ut_harmful.csv --config configs/eval.yaml --output-dir outputs/logit_lens/game_safe_ut_harmful --models base,ut,game
+uv sync
 ```
 
-## Paper Figure
+The evaluated models are:
 
-The main mechanistic framing is: aggregate safe-choice rates are flat, but reward adapters create objective-specific late-layer decision-evidence shifts. Interpret the plot as relative separation in the final third of the network, not as evidence for a single moral layer. Regenerate the combined 2x2 logit-lens figure, late-layer separation tables, and random PD/Chicken control subset CSVs with:
+| Key | Model |
+|---|---|
+| Base | `unsloth/Qwen3.5-9B` |
+| UT | `agentic-moral-alignment/qwen35-9b__gtharm_pd_str_tft__gtharm_ut__native_tool__r1__gtharm_pd` |
+| GAME | `agentic-moral-alignment/qwen35-9b__gtharm_pd_str_tft__gtharm_game__native_tool__r1__gtharm_pd` |
+
+UT and GAME are PEFT/LoRA adapter repos; the loader supports both full CausalLM checkpoints and PEFT adapters.
+
+## Behavioral Anchor
+
+Prompts are deterministic A/B decisions ending in `Answer:`. The evaluator scores next-token logits for `" A"` and `" B"` and defines:
+
+`safe margin = logit(safe option) - logit(harmful option)`
+
+Positive margins mean the model prefers the safe/cooperative action; negative margins mean it prefers the harmful/defective action. Logit scoring avoids free-form parsing ambiguity and gives a continuous decision variable for later mechanistic work.
+
+Behavioral evaluation on the position-balanced GT-HarmBench dataset:
+
+| Model | Safe rate | Mean safe margin | Median safe margin | n |
+|---|---:|---:|---:|---:|
+| Base | 0.702 | 0.644 | 0.625 | 3185 |
+| UT | 0.701 | 0.658 | 0.750 | 3185 |
+| GAME | 0.701 | 0.631 | 0.625 | 3185 |
+
+Paired safe-rate changes relative to Base are effectively zero: UT − Base = −0.00094, GAME − Base = −0.00094, with bootstrap confidence intervals crossing zero.
+
+Primary outputs:
+
+- `outputs/behavior_full/model_choices.csv`
+- `outputs/behavior_full/model_choices.jsonl`
+- `outputs/tables_full/overall_metrics.csv`
+- `outputs/tables_full/paired_improvements.csv`
+
+## Mechanistic Findings
+
+Layerwise logit lens projects the final prompt-token residual stream at each layer through the final norm and LM head. Layer 0 is the embedding output; layer 32 recovers the final behavioral A/B margin. Late-layer summaries average layers 21-31, excluding layer 32.
+
+Adapter-delta logit lens subtracts the Base safe-margin trajectory from each adapter trajectory:
+
+- `UT − Base`: utilitarian adapter-induced safe-margin shift.
+- `GAME − Base`: game-theoretic adapter-induced safe-margin shift.
+- `GAME − UT`: relative GAME-vs-UT adapter shift.
+
+Representation drift compares final prompt-token hidden states with pairwise cosine drift.
+
+| Subset | n | UT−Base margin | GAME−Base margin | GAME−UT margin | Base–UT drift | Base–GAME drift | UT–GAME drift |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| UT-favored margin shifts | 150 | +0.317 | -0.157 | -0.474 | 0.00028 | 0.00016 | 0.00051 |
+| GAME-favored margin shifts | 150 | -0.103 | +0.158 | +0.262 | 0.00017 | 0.00018 | 0.00035 |
+| UT-safe / GAME-harmful | 39 | +0.408 | -0.324 | -0.731 | 0.00032 | 0.00026 | 0.00078 |
+| GAME-safe / UT-harmful | 39 | -0.344 | +0.231 | +0.575 | 0.00024 | 0.00018 | 0.00047 |
+| Random Prisoner's Dilemma | 150 | +0.195 | -0.129 | -0.323 | 0.00020 | 0.00014 | 0.00034 |
+| Random Chicken | 150 | -0.160 | +0.131 | +0.290 | 0.00017 | 0.00015 | 0.00030 |
+
+Interpretation:
+
+- UT increases late-layer safe-action evidence on UT-favored and Prisoner's Dilemma-heavy subsets.
+- GAME increases late-layer safe-action evidence on GAME-favored and Chicken-heavy subsets.
+- The random PD/Chicken controls show the same directional pattern, so the effect is not only a top-shift selection artifact.
+- Cosine representation drift stays tiny, around `1e-4` to `8e-4`, even when adapter-delta margins are large.
+
+Main figures:
+
+- `outputs/figures_logit_lens/logit_lens_combined_2x2.png`
+- `outputs/figures_adapter_delta/adapter_delta_logit_lens_2x3.png`
+- `outputs/figures_adapter_delta/adapter_delta_logit_lens_heatmap.png`
+- `outputs/figures_adapter_delta/late_layer_effect_summary_heatmap.png`
+- `outputs/figures_repdrift/*_cosine_drift.png`
+
+![Late-layer effect summary](outputs/figures_adapter_delta/late_layer_effect_summary_heatmap.png)
+
+## Experiments
+
+| Stage | Script | Purpose |
+|---|---|---|
+| Data conversion | `scripts/convert_gtharmbench_csv.py` | Convert original GT-HarmBench CSV/XLSX to JSONL. |
+| Position balancing | `scripts/balance_ab_positions.py` | Randomize A/B positions to avoid safe-label imbalance. |
+| Behavioral eval | `scripts/evaluate_behavior.py` or `moral-eval` | Score A/B logits and build disagreement sets. |
+| Behavioral summary | `scripts/summarize_behavior.py` or `moral-summary` | Tables, safe rates, bootstrap paired improvements, subset CSVs. |
+| Logit lens | `scripts/03_logit_lens_margins.py` | Layerwise safe-action margin trajectories. |
+| Paper figures | `scripts/04_make_paper_figures.py` | Combined 2x2 logit-lens figure and late-layer tables. |
+| Random controls | `scripts/04_make_random_control_subsets.py`, `scripts/05_summarize_control_logit_lens.py` | Random PD/Chicken controls. |
+| Representation drift | `scripts/06_representation_drift.py`, `scripts/07_summarize_representation_drift.py` | Pairwise layerwise cosine drift. |
+| Adapter deltas | `scripts/08_plot_adapter_delta_logit_lens.py`, `scripts/09_plot_adapter_delta_heatmap.py` | Base-subtracted adapter effects. |
+| Effect summary | `scripts/10_plot_late_layer_effect_summary_heatmap.py` | Compact late-layer margin + drift heatmap. |
+
+## Reproduction
+
+Run behavioral evaluation:
+
+```bash
+PYTHONPATH=src python -m moral_mechinterp.cli.evaluate_behavior \
+  data/gtharmbench_balanced.jsonl \
+  --config configs/eval.yaml \
+  --output-dir outputs/behavior_full
+```
+
+Summarize behavior:
+
+```bash
+PYTHONPATH=src python -m moral_mechinterp.cli.summarize_behavior \
+  outputs/behavior_full/model_choices.csv \
+  --config configs/eval.yaml \
+  --tables-dir outputs/tables_full \
+  --figures-dir outputs/figures_full
+```
+
+Run logit lens on the main subsets:
+
+```bash
+PYTHONPATH=src python scripts/03_logit_lens_margins.py \
+  --subset-csv outputs/behavior_full/subsets/top_ut_margin_shift.csv \
+  --config configs/eval.yaml \
+  --output-dir outputs/logit_lens_fixed/top_ut_margin_shift \
+  --models base,ut,game
+```
+
+Repeat for:
+
+- `top_game_margin_shift`
+- `ut_safe_game_harmful`
+- `game_safe_ut_harmful`
+- `random_pd_150`
+- `random_chicken_150`
+
+Regenerate tables and figures from saved outputs:
 
 ```bash
 PYTHONPATH=src python scripts/04_make_paper_figures.py
-```
-
-## Random Game-Type Controls
-
-The random PD/Chicken controls test whether late-layer adapter separation appears beyond margin-shift-selected or categorical-disagreement subsets. Late-layer means average layers 21-31; layer 32 is excluded because it recovers the final behavioral A/B margin. Create or validate the fixed random subsets, run the existing logit-lens script, then summarize layers 21-31 with:
-
-```bash
-PYTHONPATH=src python scripts/04_make_random_control_subsets.py
-
-PYTHONPATH=src python scripts/03_logit_lens_margins.py \
-  --subset-csv outputs/behavior_full/subsets/random_pd_150.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/logit_lens_fixed/random_pd_150 \
-  --models base,ut,game
-
-PYTHONPATH=src python scripts/03_logit_lens_margins.py \
-  --subset-csv outputs/behavior_full/subsets/random_chicken_150.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/logit_lens_fixed/random_chicken_150 \
-  --models base,ut,game
-
 PYTHONPATH=src python scripts/05_summarize_control_logit_lens.py
-```
-
-## Layerwise Representation Drift
-
-Representation drift compares final prompt-token hidden states across models at each layer using pairwise cosine drift. This tests whether late-layer logit-lens separation corresponds to representation-space movement or to smaller readout-aligned perturbations. Run one subset at a time so only one 9B model is loaded during extraction:
-
-```bash
-PYTHONPATH=src python scripts/06_representation_drift.py \
-  --subset-csv outputs/behavior_full/subsets/top_ut_margin_shift.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/representation_drift/top_ut_margin_shift \
-  --models base,ut,game
-
-PYTHONPATH=src python scripts/06_representation_drift.py \
-  --subset-csv outputs/behavior_full/subsets/top_game_margin_shift.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/representation_drift/top_game_margin_shift \
-  --models base,ut,game
-
-PYTHONPATH=src python scripts/06_representation_drift.py \
-  --subset-csv outputs/behavior_full/subsets/ut_safe_game_harmful.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/representation_drift/ut_safe_game_harmful \
-  --models base,ut,game
-
-PYTHONPATH=src python scripts/06_representation_drift.py \
-  --subset-csv outputs/behavior_full/subsets/game_safe_ut_harmful.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/representation_drift/game_safe_ut_harmful \
-  --models base,ut,game
-
-PYTHONPATH=src python scripts/06_representation_drift.py \
-  --subset-csv outputs/behavior_full/subsets/random_pd_150.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/representation_drift/random_pd_150 \
-  --models base,ut,game
-
-PYTHONPATH=src python scripts/06_representation_drift.py \
-  --subset-csv outputs/behavior_full/subsets/random_chicken_150.csv \
-  --config configs/eval.yaml \
-  --output-dir outputs/representation_drift/random_chicken_150 \
-  --models base,ut,game
-
 PYTHONPATH=src python scripts/07_summarize_representation_drift.py
-```
-
-## Adapter-Delta Logit Lens
-
-Adapter-delta logit-lens subtracts the Base safe-margin trajectory from each adapter trajectory. This isolates the adapter-induced readout shift. Positive values mean the adapter increases safe-action evidence relative to Base; negative values mean it decreases safe-action evidence relative to Base. Late-layer summaries average layers 21-31, excluding layer 32 because layer 32 recovers the final behavioral A/B margin.
-
-Adapter-delta heatmaps subtract the Base safe-margin trajectory from each adapter trajectory across subsets and layers. Values show adapter-induced safe-action evidence shifts, with positive values indicating higher safe-option evidence relative to Base. Late-layer summaries average layers 21-31, excluding layer 32 because it recovers the final behavioral A/B margin.
-
-The late-layer effect summary heatmap combines adapter-delta logit-lens effects with cosine representation drift. Margin columns use a signed diverging scale, while drift columns use a separate sequential scale because drift is several orders of magnitude smaller.
-
-```bash
 PYTHONPATH=src python scripts/08_plot_adapter_delta_logit_lens.py
 PYTHONPATH=src python scripts/09_plot_adapter_delta_heatmap.py
 PYTHONPATH=src python scripts/10_plot_late_layer_effect_summary_heatmap.py
 ```
+
+## Compute Notes
+
+The models are 9B-scale. A100 40GB/80GB, L40S, or H100 GPUs are recommended. Inference scripts load one model at a time to reduce VRAM pressure. Use `batch_size=1` for robust runs, then increase only after validating memory.
