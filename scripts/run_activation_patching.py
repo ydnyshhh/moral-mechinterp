@@ -375,19 +375,47 @@ def set_adapter_layers_enabled(model: Any, *, enabled: bool) -> None:
 
     toggled = 0
     for module in model.modules():
-        enable_adapters = getattr(module, "enable_adapters", None)
-        if callable(enable_adapters):
-            enable_adapters(enabled)
+        if call_adapter_toggle(module, enabled=enabled):
             toggled += 1
-            continue
-        if hasattr(module, "disable_adapters"):
-            try:
-                module.disable_adapters = not enabled
-                toggled += 1
-            except Exception:
-                pass
     if toggled == 0 and not enabled and not hasattr(model, "disable_adapter"):
         raise ValueError("Could not find PEFT adapter layers to disable for Base mode.")
+
+
+def call_adapter_toggle(module: Any, *, enabled: bool) -> bool:
+    """Toggle one PEFT/Transformers adapter-bearing module if possible."""
+
+    enable_adapters = getattr(module, "enable_adapters", None)
+    if callable(enable_adapters):
+        try:
+            enable_adapters(enabled)
+            return True
+        except TypeError:
+            if enabled:
+                try:
+                    enable_adapters()
+                    return True
+                except TypeError:
+                    pass
+
+    if not enabled:
+        disable_adapters = getattr(module, "disable_adapters", None)
+        if callable(disable_adapters):
+            try:
+                disable_adapters()
+                return True
+            except TypeError:
+                pass
+
+    if hasattr(module, "disable_adapters") and not callable(
+        getattr(module, "disable_adapters", None)
+    ):
+        try:
+            module.disable_adapters = not enabled
+            return True
+        except Exception:
+            return False
+
+    return False
 
 
 def enable_adapter_layers(model: Any) -> None:
