@@ -360,8 +360,23 @@ def model_mode(model: Any, mode: str):
 
     if not hasattr(model, "set_adapter"):
         raise ValueError(f"Model does not support PEFT adapter switching for mode {mode!r}.")
-    model.set_adapter(mode)
+    model.set_adapter(resolve_peft_adapter_name(model, mode))
     yield
+
+
+def resolve_peft_adapter_name(model: Any, mode: str) -> str:
+    """Map logical model keys to actual PEFT adapter names on the shared model."""
+
+    peft_config = getattr(model, "peft_config", {})
+    adapter_names = set(peft_config.keys()) if isinstance(peft_config, dict) else set()
+    if mode in adapter_names:
+        return mode
+    if mode == "ut" and "default" in adapter_names:
+        return "default"
+    raise ValueError(
+        f"Could not resolve adapter mode {mode!r}. Available PEFT adapters: "
+        f"{sorted(adapter_names)}"
+    )
 
 
 def get_transformer_layers(model: Any) -> Any:
@@ -543,47 +558,30 @@ def patched_forward_ab_scores(
 
 
 def load_base_with_adapters(config: Any) -> tuple[Any, Any]:
-    from peft import AutoPeftModelForCausalLM, PeftConfig
-    from transformers import AutoTokenizer
+    from moral_mechinterp.models import load_tokenizer_and_model
 
-    from moral_mechinterp.models import _build_model_kwargs
-
-    ut_config = PeftConfig.from_pretrained(config.models["ut"])
-    base_model_name_or_path = ut_config.base_model_name_or_path or config.models["base"]
-    if base_model_name_or_path != config.models["base"]:
-        print(
-            "UT adapter declares a different base model than configs/eval.yaml: "
-            f"{base_model_name_or_path!r} vs {config.models['base']!r}. "
-            "Using the adapter-declared base for the shared PEFT model."
-        )
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        base_model_name_or_path,
-        trust_remote_code=config.trust_remote_code,
-        use_fast=True,
-    )
-    if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    model_kwargs = _build_model_kwargs(
+    tokenizer, model = load_tokenizer_and_model(
+        config.models["ut"],
         torch_dtype=config.torch_dtype,
         device_map=config.device_map,
         load_in_4bit=config.load_in_4bit,
         load_in_8bit=config.load_in_8bit,
         trust_remote_code=config.trust_remote_code,
     )
-    model = AutoPeftModelForCausalLM.from_pretrained(
-        config.models["ut"],
-        adapter_name="ut",
-        is_trainable=False,
-        **model_kwargs,
-    )
+    if not hasattr(model, "load_adapter"):
+        raise ValueError(
+            "Expected the UT model to load as a PEFT model with load_adapter(). "
+            "Activation patching requires adapter switching on one shared base model."
+        )
     model.load_adapter(
         config.models["game"],
         adapter_name="game",
         is_trainable=False,
     )
     model.eval()
+    print(f"Loaded PEFT adapters: {sorted(getattr(model, 'peft_config', {}).keys())}")
+    print(f"Logical UT adapter resolves to: {resolve_peft_adapter_name(model, 'ut')}")
+    print(f"Logical GAME adapter resolves to: {resolve_peft_adapter_name(model, 'game')}")
     return tokenizer, model
 
 
