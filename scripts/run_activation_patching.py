@@ -351,38 +351,49 @@ def model_mode(model: Any, mode: str):
     """Switch a PEFT-wrapped model into Base, UT, or GAME mode."""
 
     if mode == "base":
-        if hasattr(model, "disable_adapter"):
-            try:
-                with model.disable_adapter():
-                    yield
-            finally:
-                enable_adapter_layers(model)
-        else:
+        set_adapter_layers_enabled(model, enabled=False)
+        try:
             yield
+        finally:
+            set_adapter_layers_enabled(model, enabled=True)
         return
 
     if not hasattr(model, "set_adapter"):
         raise ValueError(f"Model does not support PEFT adapter switching for mode {mode!r}.")
     model.set_adapter(resolve_peft_adapter_name(model, mode))
-    enable_adapter_layers(model)
+    set_adapter_layers_enabled(model, enabled=True)
     yield
+
+
+def set_adapter_layers_enabled(model: Any, *, enabled: bool) -> None:
+    """Best-effort manual PEFT LoRA layer toggle.
+
+    Some PEFT/Transformers combinations do not restore LoRA layers reliably after
+    PeftModel.disable_adapter(). For patching we need many Base/adapter switches,
+    so toggle the tuner layers directly instead of relying on that context manager.
+    """
+
+    toggled = 0
+    for module in model.modules():
+        enable_adapters = getattr(module, "enable_adapters", None)
+        if callable(enable_adapters):
+            enable_adapters(enabled)
+            toggled += 1
+            continue
+        if hasattr(module, "disable_adapters"):
+            try:
+                module.disable_adapters = not enabled
+                toggled += 1
+            except Exception:
+                pass
+    if toggled == 0 and not enabled and not hasattr(model, "disable_adapter"):
+        raise ValueError("Could not find PEFT adapter layers to disable for Base mode.")
 
 
 def enable_adapter_layers(model: Any) -> None:
     """Best-effort re-enable for PEFT LoRA layers after disable_adapter()."""
 
-    seen: set[int] = set()
-    for candidate in (
-        model,
-        getattr(model, "base_model", None),
-        getattr(getattr(model, "base_model", None), "model", None),
-    ):
-        if candidate is None or id(candidate) in seen:
-            continue
-        seen.add(id(candidate))
-        enable = getattr(candidate, "enable_adapter_layers", None)
-        if callable(enable):
-            enable()
+    set_adapter_layers_enabled(model, enabled=True)
 
 
 def resolve_peft_adapter_name(model: Any, mode: str) -> str:
