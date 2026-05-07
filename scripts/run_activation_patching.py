@@ -384,6 +384,9 @@ def set_adapter_layers_enabled(model: Any, *, enabled: bool) -> None:
 def call_adapter_toggle(module: Any, *, enabled: bool) -> bool:
     """Toggle one PEFT/Transformers adapter-bearing module if possible."""
 
+    if not is_lora_adapter_layer(module):
+        return False
+
     enable_adapters = getattr(module, "enable_adapters", None)
     if callable(enable_adapters):
         try:
@@ -394,8 +397,10 @@ def call_adapter_toggle(module: Any, *, enabled: bool) -> bool:
                 try:
                     enable_adapters()
                     return True
-                except TypeError:
+                except (TypeError, ValueError):
                     pass
+        except ValueError:
+            return False
 
     if not enabled:
         disable_adapters = getattr(module, "disable_adapters", None)
@@ -403,7 +408,7 @@ def call_adapter_toggle(module: Any, *, enabled: bool) -> bool:
             try:
                 disable_adapters()
                 return True
-            except TypeError:
+            except (TypeError, ValueError):
                 pass
 
     if hasattr(module, "disable_adapters") and not callable(
@@ -415,6 +420,16 @@ def call_adapter_toggle(module: Any, *, enabled: bool) -> bool:
         except Exception:
             return False
 
+    return False
+
+
+def is_lora_adapter_layer(module: Any) -> bool:
+    """Return true for actual LoRA tuner layers, not parent PEFT mixin modules."""
+
+    if hasattr(module, "lora_A") or hasattr(module, "lora_B"):
+        return True
+    if hasattr(module, "lora_embedding_A") or hasattr(module, "lora_embedding_B"):
+        return True
     return False
 
 
