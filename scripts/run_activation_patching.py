@@ -93,6 +93,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--no-plot", action="store_true")
     parser.add_argument(
+        "--plot-only",
+        action="store_true",
+        help=(
+            "Only regenerate activation-patching figures from an existing "
+            "activation_patching_summary.csv; do not load models or run inference."
+        ),
+    )
+    parser.add_argument(
+        "--summary-csv",
+        type=Path,
+        default=None,
+        help=(
+            "Summary CSV to use with --plot-only. Defaults to "
+            "<output-dir>/activation_patching_summary.csv."
+        ),
+    )
+    parser.add_argument(
+        "--final-norm-layer",
+        type=int,
+        default=None,
+        help=(
+            "Final norm/readout layer index for plotting. If omitted in --plot-only "
+            "mode, read it from run_metadata.json or infer it from the max layer."
+        ),
+    )
+    parser.add_argument(
         "--no-jsonl",
         action="store_true",
         help=(
@@ -1305,8 +1331,8 @@ def line_label(row: Any) -> str:
     if row.patch_direction == "Base_to_A":
         return f"Base->{adapter}"
     if row.patch_direction == "A_to_Base":
-        return f"{adapter}→Base"
-    return f"Base→{adapter}"
+        return f"{adapter}->Base"
+    return f"Base->{adapter}"
 
 
 def plot_summary(
@@ -1429,9 +1455,16 @@ def plot_fraction(
     for ax in axes.ravel()[len(subset_names):]:
         ax.axis("off")
     handles, labels = axes.ravel()[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False)
-    fig.suptitle(title, y=0.995)
-    fig.subplots_adjust(top=0.88, hspace=0.48, wspace=0.28)
+    fig.suptitle(title, y=0.985)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.955),
+        ncol=2,
+        frameon=False,
+    )
+    fig.subplots_adjust(top=0.84, hspace=0.56, wspace=0.30)
     save_figure(fig, output_dir / filename)
 
 
@@ -1495,9 +1528,16 @@ def plot_raw_effects(
     for ax in axes.ravel()[len(subset_names):]:
         ax.axis("off")
     handles, labels = axes.ravel()[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=4, frameon=False)
-    fig.suptitle("Raw activation-patching margin effects", y=0.995)
-    fig.subplots_adjust(top=0.88, hspace=0.48, wspace=0.28)
+    fig.suptitle("Raw activation-patching margin effects", y=0.985)
+    fig.legend(
+        handles,
+        labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.955),
+        ncol=4,
+        frameon=False,
+    )
+    fig.subplots_adjust(top=0.84, hspace=0.56, wspace=0.30)
     save_figure(fig, output_dir / "fig_raw_margin_change_by_layer")
 
 
@@ -1691,6 +1731,47 @@ def write_metadata(
         json.dump(metadata, handle, indent=2)
 
 
+def resolve_plot_final_norm_layer(
+    *,
+    output_dir: Path,
+    summary_df: Any,
+    explicit_final_norm_layer: int | None,
+) -> int:
+    if explicit_final_norm_layer is not None:
+        return explicit_final_norm_layer
+    metadata_path = output_dir / "run_metadata.json"
+    if metadata_path.exists():
+        with metadata_path.open("r", encoding="utf-8") as handle:
+            metadata = json.load(handle)
+        final_norm_layer = metadata.get("final_norm_layer")
+        if final_norm_layer is not None:
+            return int(final_norm_layer)
+    return int(summary_df["layer"].max())
+
+
+def plot_existing_patching_summary(args: argparse.Namespace, config: Any) -> None:
+    from moral_mechinterp.io import ensure_dir
+
+    pd = load_pandas()
+    output_dir = ensure_dir(args.output_dir)
+    summary_path = args.summary_csv or (output_dir / "activation_patching_summary.csv")
+    if not summary_path.exists():
+        raise FileNotFoundError(f"Missing activation patching summary CSV: {summary_path}")
+    summary_df = pd.read_csv(summary_path)
+    final_norm_layer = resolve_plot_final_norm_layer(
+        output_dir=output_dir,
+        summary_df=summary_df,
+        explicit_final_norm_layer=args.final_norm_layer,
+    )
+    plot_summary(
+        summary_df,
+        output_dir=output_dir,
+        font_family=config.plot_font_family,
+        final_norm_layer=final_norm_layer,
+    )
+    print(f"Wrote activation patching plots to: {output_dir}")
+
+
 def main() -> None:
     configure_stdout()
     args = parse_args()
@@ -1706,6 +1787,9 @@ def main() -> None:
         args.output_dir = Path("artifacts/patching_sanity")
     output_dir = ensure_dir(args.output_dir)
     config = load_eval_config(args.config)
+    if args.plot_only:
+        plot_existing_patching_summary(args, config)
+        return
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive.")
     if args.delta_threshold < 0:
