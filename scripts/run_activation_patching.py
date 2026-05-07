@@ -371,7 +371,7 @@ def resolve_peft_adapter_name(model: Any, mode: str) -> str:
     adapter_names = set(peft_config.keys()) if isinstance(peft_config, dict) else set()
     if mode in adapter_names:
         return mode
-    if mode == "ut" and "default" in adapter_names:
+    if mode != "base" and adapter_names == {"default"}:
         return "default"
     raise ValueError(
         f"Could not resolve adapter mode {mode!r}. Available PEFT adapters: "
@@ -557,11 +557,11 @@ def patched_forward_ab_scores(
     )
 
 
-def load_base_with_adapters(config: Any) -> tuple[Any, Any]:
+def load_base_with_adapter(config: Any, adapter_key: str) -> tuple[Any, Any]:
     from moral_mechinterp.models import load_tokenizer_and_model
 
     tokenizer, model = load_tokenizer_and_model(
-        config.models["ut"],
+        config.models[adapter_key],
         torch_dtype=config.torch_dtype,
         device_map=config.device_map,
         load_in_4bit=config.load_in_4bit,
@@ -570,18 +570,14 @@ def load_base_with_adapters(config: Any) -> tuple[Any, Any]:
     )
     if not hasattr(model, "load_adapter"):
         raise ValueError(
-            "Expected the UT model to load as a PEFT model with load_adapter(). "
-            "Activation patching requires adapter switching on one shared base model."
+            f"Expected {adapter_key!r} to load as a PEFT model with adapter switching."
         )
-    model.load_adapter(
-        config.models["game"],
-        adapter_name="game",
-        is_trainable=False,
-    )
     model.eval()
     print(f"Loaded PEFT adapters: {sorted(getattr(model, 'peft_config', {}).keys())}")
-    print(f"Logical UT adapter resolves to: {resolve_peft_adapter_name(model, 'ut')}")
-    print(f"Logical GAME adapter resolves to: {resolve_peft_adapter_name(model, 'game')}")
+    print(
+        f"Logical {ADAPTER_LABELS[adapter_key]} adapter resolves to: "
+        f"{resolve_peft_adapter_name(model, adapter_key)}"
+    )
     return tokenizer, model
 
 
@@ -608,6 +604,7 @@ def clean_margin_records(
     examples: list[Any],
     config: Any,
     token_ids: dict[str, int],
+    adapters: list[str],
     batch_size: int,
 ) -> dict[str, dict[str, Any]]:
     from tqdm.auto import tqdm
@@ -628,22 +625,16 @@ def clean_margin_records(
                 mode="base",
                 token_ids=token_ids,
                 safe_labels=safe_labels,
-            ),
-            "ut": forward_ab_scores(
-                model=model,
-                inputs=inputs,
-                mode="ut",
-                token_ids=token_ids,
-                safe_labels=safe_labels,
-            ),
-            "game": forward_ab_scores(
-                model=model,
-                inputs=inputs,
-                mode="game",
-                token_ids=token_ids,
-                safe_labels=safe_labels,
-            ),
+            )
         }
+        for adapter_key in adapters:
+            batch_scores[adapter_key] = forward_ab_scores(
+                model=model,
+                inputs=inputs,
+                mode=adapter_key,
+                token_ids=token_ids,
+                safe_labels=safe_labels,
+            )
 
         for row_idx, example in enumerate(batch_examples):
             record: dict[str, Any] = {
@@ -651,15 +642,15 @@ def clean_margin_records(
                 "game_type": example.game_type,
                 "safe_label": example.safe_label,
             }
-            for mode in ("base", "ut", "game"):
+            for mode in ("base", *adapters):
                 score = batch_scores[mode][row_idx]
                 record[f"m_{mode}"] = score["safe_margin"]
                 record[f"{mode}_choice"] = score["choice"]
                 record[f"{mode}_safe_choice"] = score["safe_choice"]
                 record[f"{mode}_logit_A"] = score["logit_A"]
                 record[f"{mode}_logit_B"] = score["logit_B"]
-            record["delta_ut"] = record["m_ut"] - record["m_base"]
-            record["delta_game"] = record["m_game"] - record["m_base"]
+            for adapter_key in adapters:
+                record[f"delta_{adapter_key}"] = record[f"m_{adapter_key}"] - record["m_base"]
             records[example.id] = record
     return records
 
@@ -701,6 +692,28 @@ def validate_clean_adapter_effects(
             "model. Aborting before the expensive patching loop. Use "
             "--allow-zero-adapter-deltas only for debugging."
         )
+
+
+def merge_clean_margin_records(
+    combined: dict[str, dict[str, Any]],
+    new_records: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    for example_id, new_record in new_records.items():
+        if example_id not in combined:
+            combined[example_id] = dict(new_record)
+            continue
+        record = combined[example_id]
+        if abs(float(record["m_base"]) - float(new_record["m_base"])) > 1e-4:
+            raise RuntimeError(
+                f"Base clean margin mismatch for example {example_id!r} across "
+                "adapter-specific PEFT models. Check adapter base_model_name_or_path."
+            )
+        for key, value in new_record.items():
+            if key in {"example_id", "game_type", "safe_label"}:
+                continue
+            if key.startswith(("m_", "delta_", "ut_", "game_")):
+                record[key] = value
+    return combined
 
 
 def patch_result_record(
@@ -934,12 +947,13 @@ def run_activation_patching(
     seed: int,
     include_null_controls: bool,
     include_shuffled_control: bool,
+    initial_records: list[dict[str, Any]] | None = None,
 ) -> Any:
     from tqdm.auto import tqdm
 
     from moral_mechinterp.utils import batched
 
-    records: list[dict[str, Any]] = []
+    records: list[dict[str, Any]] = list(initial_records or [])
     completed_batches = 0
     total_steps = sum(
         math.ceil(len(examples) / batch_size) * len(adapters) * len(PATCH_DIRECTIONS) * len(layers)
@@ -978,7 +992,7 @@ def run_activation_patching(
                     n_transformer_layers=n_transformer_layers,
                 )
                 if include_null_controls:
-                    for mode in ("base", "ut", "game"):
+                    for mode in ("base", *adapters):
                         clean_activation = base_activation
                         if mode != "base":
                             clean_activation = capture_layer_activation(
@@ -1146,7 +1160,8 @@ def run_activation_patching(
                         save_patch_outputs(records, output_dir=output_dir, seed=seed)
 
     progress.close()
-    return save_patch_outputs(records, output_dir=output_dir, seed=seed)
+    summary_df = save_patch_outputs(records, output_dir=output_dir, seed=seed)
+    return summary_df, records
 
 
 def line_label(row: Any) -> str:
@@ -1508,6 +1523,13 @@ def write_metadata(
         "config": str(args.config),
         "subsets": {name: len(examples) for name, examples in subsets.items()},
         "adapters": adapters,
+        "adapter_loading": (
+            "Adapters are processed one at a time in isolated PEFT models. "
+            "Each adapter is loaded through the same adapter-loader path used by "
+            "behavioral evaluation, then Base mode uses disable_adapter(). This "
+            "avoids fragile multi-adapter loading where a second adapter can be "
+            "silently inactive."
+        ),
         "layers": layers,
         "n_transformer_layers": n_transformer_layers,
         "final_norm_layer": n_transformer_layers + 1,
@@ -1587,87 +1609,116 @@ def main() -> None:
     print(f"Loaded {sum(len(v) for v in subsets.values())} subset rows.")
     print(f"Unique examples requiring clean margins: {len(examples)}")
 
-    tokenizer, model = load_base_with_adapters(config)
-    try:
-        print(f"PEFT active adapter after load: {active_adapter_state(model)}")
-        n_transformer_layers = len(get_transformer_layers(model))
-        final_norm_layer = n_transformer_layers + 1
-        if args.sanity_check:
-            layers = sanity_layers(n_transformer_layers=n_transformer_layers)
-        else:
-            layers = parse_layers(args.layers, n_transformer_layers=n_transformer_layers)
-        print(
-            "Layer convention: 0=embedding, "
-            f"1-{n_transformer_layers}=block outputs, "
-            f"{final_norm_layer}=final norm/readout."
-        )
-        token_ids = resolve_score_token_ids(
-            tokenizer,
-            config.score_tokens,
-            allow_multitoken_score_labels=config.allow_multitoken_score_labels,
-        )
-        clean_by_id = clean_margin_records(
-            model=model,
-            tokenizer=tokenizer,
-            examples=examples,
-            config=config,
-            token_ids=token_ids,
-            batch_size=args.batch_size,
-        )
-        validate_clean_adapter_effects(
-            clean_by_id,
-            adapters=adapters,
-            threshold=args.adapter_effect_threshold,
-            allow_zero_adapter_deltas=args.allow_zero_adapter_deltas,
-        )
-        clean_records = [clean_by_id[example.id] for example in examples]
-        write_clean_margins(clean_records, output_dir)
+    combined_clean_by_id: dict[str, dict[str, Any]] = {}
+    patch_records: list[dict[str, Any]] = []
+    summary_df = None
+    layers: list[int] | None = None
+    n_transformer_layers: int | None = None
+    final_norm_layer: int | None = None
 
-        summary_df = run_activation_patching(
-            model=model,
-            tokenizer=tokenizer,
-            subsets=subsets,
-            clean_by_id=clean_by_id,
-            config=config,
-            token_ids=token_ids,
-            adapters=adapters,
-            layers=layers,
-            n_transformer_layers=n_transformer_layers,
-            batch_size=args.batch_size,
-            delta_threshold=args.delta_threshold,
-            eps=args.eps,
-            output_dir=output_dir,
-            save_every=args.save_every,
-            seed=args.seed,
-            include_null_controls=args.include_null_controls or args.sanity_check,
-            include_shuffled_control=args.include_shuffled_control,
-        )
-        result_df = load_pandas().read_csv(output_dir / "activation_patching_results.csv")
-        if args.sanity_check:
-            write_sanity_report(
-                output_dir=output_dir,
-                result_df=result_df,
-                final_norm_layer=final_norm_layer,
+    for adapter_key in adapters:
+        print(f"=== Adapter-specific patching run: {ADAPTER_LABELS[adapter_key]} ===")
+        tokenizer, model = load_base_with_adapter(config, adapter_key)
+        try:
+            print(f"PEFT active adapter after load: {active_adapter_state(model)}")
+            current_n_layers = len(get_transformer_layers(model))
+            if n_transformer_layers is None:
+                n_transformer_layers = current_n_layers
+                final_norm_layer = n_transformer_layers + 1
+                if args.sanity_check:
+                    layers = sanity_layers(n_transformer_layers=n_transformer_layers)
+                else:
+                    layers = parse_layers(args.layers, n_transformer_layers=n_transformer_layers)
+                print(
+                    "Layer convention: 0=embedding, "
+                    f"1-{n_transformer_layers}=block outputs, "
+                    f"{final_norm_layer}=final norm/readout."
+                )
+            elif current_n_layers != n_transformer_layers:
+                raise RuntimeError(
+                    f"Adapter {adapter_key!r} has {current_n_layers} transformer layers, "
+                    f"but previous adapter had {n_transformer_layers}."
+                )
+
+            token_ids = resolve_score_token_ids(
+                tokenizer,
+                config.score_tokens,
+                allow_multitoken_score_labels=config.allow_multitoken_score_labels,
             )
-        if not args.no_plot and not args.sanity_check:
-            plot_summary(
-                summary_df,
-                output_dir=output_dir,
-                font_family=config.plot_font_family,
-                final_norm_layer=final_norm_layer,
+            clean_by_id = clean_margin_records(
+                model=model,
+                tokenizer=tokenizer,
+                examples=examples,
+                config=config,
+                token_ids=token_ids,
+                adapters=[adapter_key],
+                batch_size=args.batch_size,
             )
-        write_metadata(
+            validate_clean_adapter_effects(
+                clean_by_id,
+                adapters=[adapter_key],
+                threshold=args.adapter_effect_threshold,
+                allow_zero_adapter_deltas=args.allow_zero_adapter_deltas,
+            )
+            combined_clean_by_id = merge_clean_margin_records(combined_clean_by_id, clean_by_id)
+            clean_records = [combined_clean_by_id[example.id] for example in examples]
+            write_clean_margins(clean_records, output_dir)
+
+            summary_df, patch_records = run_activation_patching(
+                model=model,
+                tokenizer=tokenizer,
+                subsets=subsets,
+                clean_by_id=clean_by_id,
+                config=config,
+                token_ids=token_ids,
+                adapters=[adapter_key],
+                layers=layers or [],
+                n_transformer_layers=n_transformer_layers,
+                batch_size=args.batch_size,
+                delta_threshold=args.delta_threshold,
+                eps=args.eps,
+                output_dir=output_dir,
+                save_every=args.save_every,
+                seed=args.seed,
+                include_null_controls=args.include_null_controls or args.sanity_check,
+                include_shuffled_control=args.include_shuffled_control,
+                initial_records=patch_records,
+            )
+        finally:
+            unload_model(model)
+
+    if (
+        summary_df is None
+        or n_transformer_layers is None
+        or final_norm_layer is None
+        or layers is None
+    ):
+        raise RuntimeError("No adapter-specific patching runs completed.")
+
+    result_df = load_pandas().read_csv(output_dir / "activation_patching_results.csv")
+    if args.sanity_check:
+        write_sanity_report(
             output_dir=output_dir,
-            args=args,
-            adapters=adapters,
-            layers=layers,
-            subsets=subsets,
-            n_transformer_layers=n_transformer_layers,
+            result_df=result_df,
+            final_norm_layer=final_norm_layer,
         )
-        print(PATCHING_PAPER_PARAGRAPH)
-        print(f"Wrote activation patching artifacts to: {output_dir}")
-    finally:
-        unload_model(model)
+    if not args.no_plot and not args.sanity_check:
+        plot_summary(
+            summary_df,
+            output_dir=output_dir,
+            font_family=config.plot_font_family,
+            final_norm_layer=final_norm_layer,
+        )
+    write_metadata(
+        output_dir=output_dir,
+        args=args,
+        adapters=adapters,
+        layers=layers,
+        subsets=subsets,
+        n_transformer_layers=n_transformer_layers,
+    )
+    print(PATCHING_PAPER_PARAGRAPH)
+    print(f"Wrote activation patching artifacts to: {output_dir}")
 
 
 if __name__ == "__main__":
