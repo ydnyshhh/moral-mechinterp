@@ -352,8 +352,11 @@ def model_mode(model: Any, mode: str):
 
     if mode == "base":
         if hasattr(model, "disable_adapter"):
-            with model.disable_adapter():
-                yield
+            try:
+                with model.disable_adapter():
+                    yield
+            finally:
+                enable_adapter_layers(model)
         else:
             yield
         return
@@ -361,7 +364,25 @@ def model_mode(model: Any, mode: str):
     if not hasattr(model, "set_adapter"):
         raise ValueError(f"Model does not support PEFT adapter switching for mode {mode!r}.")
     model.set_adapter(resolve_peft_adapter_name(model, mode))
+    enable_adapter_layers(model)
     yield
+
+
+def enable_adapter_layers(model: Any) -> None:
+    """Best-effort re-enable for PEFT LoRA layers after disable_adapter()."""
+
+    seen: set[int] = set()
+    for candidate in (
+        model,
+        getattr(model, "base_model", None),
+        getattr(getattr(model, "base_model", None), "model", None),
+    ):
+        if candidate is None or id(candidate) in seen:
+            continue
+        seen.add(id(candidate))
+        enable = getattr(candidate, "enable_adapter_layers", None)
+        if callable(enable):
+            enable()
 
 
 def resolve_peft_adapter_name(model: Any, mode: str) -> str:
