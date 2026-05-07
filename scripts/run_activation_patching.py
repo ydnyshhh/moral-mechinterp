@@ -73,6 +73,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--full-sample-size", type=int, default=0)
     parser.add_argument("--include-full", action="store_true")
     parser.add_argument("--delta-threshold", type=float, default=0.05)
+    parser.add_argument(
+        "--adapter-effect-threshold",
+        type=float,
+        default=1e-6,
+        help=(
+            "Abort if every clean adapter-vs-Base margin delta is at or below this "
+            "absolute value for any requested adapter. This catches inactive PEFT adapters."
+        ),
+    )
+    parser.add_argument(
+        "--allow-zero-adapter-deltas",
+        action="store_true",
+        help="Do not abort when clean adapter-vs-Base margins are all zero.",
+    )
     parser.add_argument("--eps", type=float, default=1e-6)
     parser.add_argument("--save-every", type=int, default=25)
     parser.add_argument("--seed", type=int, default=42)
@@ -529,23 +543,40 @@ def patched_forward_ab_scores(
 
 
 def load_base_with_adapters(config: Any) -> tuple[Any, Any]:
-    from peft import PeftModel
+    from peft import AutoPeftModelForCausalLM, PeftConfig
+    from transformers import AutoTokenizer
 
-    from moral_mechinterp.models import load_tokenizer_and_model
+    from moral_mechinterp.models import _build_model_kwargs
 
-    tokenizer, base_model = load_tokenizer_and_model(
-        config.models["base"],
+    ut_config = PeftConfig.from_pretrained(config.models["ut"])
+    base_model_name_or_path = ut_config.base_model_name_or_path or config.models["base"]
+    if base_model_name_or_path != config.models["base"]:
+        print(
+            "UT adapter declares a different base model than configs/eval.yaml: "
+            f"{base_model_name_or_path!r} vs {config.models['base']!r}. "
+            "Using the adapter-declared base for the shared PEFT model."
+        )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        base_model_name_or_path,
+        trust_remote_code=config.trust_remote_code,
+        use_fast=True,
+    )
+    if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    model_kwargs = _build_model_kwargs(
         torch_dtype=config.torch_dtype,
         device_map=config.device_map,
         load_in_4bit=config.load_in_4bit,
         load_in_8bit=config.load_in_8bit,
         trust_remote_code=config.trust_remote_code,
     )
-    model = PeftModel.from_pretrained(
-        base_model,
+    model = AutoPeftModelForCausalLM.from_pretrained(
         config.models["ut"],
         adapter_name="ut",
         is_trainable=False,
+        **model_kwargs,
     )
     model.load_adapter(
         config.models["game"],
@@ -633,6 +664,45 @@ def clean_margin_records(
             record["delta_game"] = record["m_game"] - record["m_base"]
             records[example.id] = record
     return records
+
+
+def validate_clean_adapter_effects(
+    clean_by_id: dict[str, dict[str, Any]],
+    *,
+    adapters: list[str],
+    threshold: float,
+    allow_zero_adapter_deltas: bool,
+) -> None:
+    """Fail fast if requested adapters produce Base-identical clean margins."""
+
+    rows = list(clean_by_id.values())
+    if not rows:
+        raise ValueError("No clean margin records were computed.")
+
+    summaries: list[str] = []
+    inactive_adapters: list[str] = []
+    for adapter_key in adapters:
+        delta_col = f"delta_{adapter_key}"
+        deltas = [abs(float(row[delta_col])) for row in rows]
+        max_abs_delta = max(deltas)
+        mean_abs_delta = sum(deltas) / len(deltas)
+        summaries.append(
+            f"{adapter_key}: max|delta|={max_abs_delta:.6g}, "
+            f"mean|delta|={mean_abs_delta:.6g}"
+        )
+        if max_abs_delta <= threshold:
+            inactive_adapters.append(adapter_key)
+
+    message = "Clean adapter-vs-Base margin check: " + "; ".join(summaries)
+    print(message)
+    if inactive_adapters and not allow_zero_adapter_deltas:
+        raise RuntimeError(
+            f"Adapter(s) {inactive_adapters} produced Base-identical clean margins "
+            f"for all {len(rows)} examples (threshold={threshold}). This usually "
+            "means the PEFT adapters are inactive or were loaded onto the wrong base "
+            "model. Aborting before the expensive patching loop. Use "
+            "--allow-zero-adapter-deltas only for debugging."
+        )
 
 
 def patch_result_record(
@@ -1444,6 +1514,8 @@ def write_metadata(
         "n_transformer_layers": n_transformer_layers,
         "final_norm_layer": n_transformer_layers + 1,
         "delta_threshold": args.delta_threshold,
+        "adapter_effect_threshold": args.adapter_effect_threshold,
+        "allow_zero_adapter_deltas": bool(args.allow_zero_adapter_deltas),
         "eps": args.eps,
         "batch_size": args.batch_size,
         "seed": args.seed,
@@ -1484,6 +1556,8 @@ def main() -> None:
         raise ValueError("--batch-size must be positive.")
     if args.delta_threshold < 0:
         raise ValueError("--delta-threshold must be nonnegative.")
+    if args.adapter_effect_threshold < 0:
+        raise ValueError("--adapter-effect-threshold must be nonnegative.")
     if args.eps <= 0:
         raise ValueError("--eps must be positive.")
 
@@ -1541,6 +1615,12 @@ def main() -> None:
             config=config,
             token_ids=token_ids,
             batch_size=args.batch_size,
+        )
+        validate_clean_adapter_effects(
+            clean_by_id,
+            adapters=adapters,
+            threshold=args.adapter_effect_threshold,
+            allow_zero_adapter_deltas=args.allow_zero_adapter_deltas,
         )
         clean_records = [clean_by_id[example.id] for example in examples]
         write_clean_margins(clean_records, output_dir)
