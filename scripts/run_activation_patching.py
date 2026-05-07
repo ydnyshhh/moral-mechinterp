@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import sys
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -91,6 +92,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--save-every", type=int, default=25)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--no-plot", action="store_true")
+    parser.add_argument(
+        "--no-jsonl",
+        action="store_true",
+        help=(
+            "Skip JSONL artifacts and write CSV summaries only. Recommended for long "
+            "RunPod jobs because CSV is sufficient for downstream tables/plots."
+        ),
+    )
     parser.add_argument(
         "--sanity-check",
         action="store_true",
@@ -656,20 +665,57 @@ def load_base_with_adapter(config: Any, adapter_key: str) -> tuple[Any, Any]:
     return tokenizer, model
 
 
+def with_io_retries(description: str, operation: Any, *, attempts: int = 5) -> Any:
+    """Run a filesystem write with short retries for flaky network volumes."""
+
+    for attempt in range(1, attempts + 1):
+        try:
+            return operation()
+        except OSError as exc:
+            if attempt == attempts:
+                raise
+            delay = min(30, 2 * attempt)
+            print(
+                f"Warning: {description} failed with {exc!r}; "
+                f"retrying in {delay}s ({attempt}/{attempts}).",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+    raise RuntimeError(f"Unexpected retry failure while writing {description}.")
+
+
 def write_jsonl(records: list[dict[str, Any]], path: Path) -> Path:
     from moral_mechinterp.io import ensure_dir
 
     ensure_dir(path.parent)
-    with path.open("w", encoding="utf-8") as handle:
-        for record in records:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    def _write() -> None:
+        with path.open("w", encoding="utf-8") as handle:
+            for record in records:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+    with_io_retries(f"write {path}", _write)
     return path
 
 
-def write_clean_margins(records: list[dict[str, Any]], output_dir: Path) -> None:
+def write_dataframe_csv(df: Any, path: Path) -> Path:
+    from moral_mechinterp.io import ensure_dir
+
+    ensure_dir(path.parent)
+    with_io_retries(f"write {path}", lambda: df.to_csv(path, index=False))
+    return path
+
+
+def write_clean_margins(
+    records: list[dict[str, Any]],
+    output_dir: Path,
+    *,
+    write_jsonl_output: bool,
+) -> None:
     pd = load_pandas()
-    write_jsonl(records, output_dir / "clean_margins.jsonl")
-    pd.DataFrame.from_records(records).to_csv(output_dir / "clean_margins.csv", index=False)
+    if write_jsonl_output:
+        write_jsonl(records, output_dir / "clean_margins.jsonl")
+    write_dataframe_csv(pd.DataFrame.from_records(records), output_dir / "clean_margins.csv")
 
 
 def clean_margin_records(
@@ -923,13 +969,15 @@ def save_patch_outputs(
     *,
     output_dir: Path,
     seed: int,
+    write_jsonl_output: bool,
 ) -> Any:
     pd = load_pandas()
-    write_jsonl(records, output_dir / "activation_patching_results.jsonl")
     result_df = pd.DataFrame.from_records(records)
-    result_df.to_csv(output_dir / "activation_patching_results.csv", index=False)
+    write_dataframe_csv(result_df, output_dir / "activation_patching_results.csv")
     summary_df = summarize_patch_results(result_df, seed=seed)
-    summary_df.to_csv(output_dir / "activation_patching_summary.csv", index=False)
+    write_dataframe_csv(summary_df, output_dir / "activation_patching_summary.csv")
+    if write_jsonl_output:
+        write_jsonl(records, output_dir / "activation_patching_results.jsonl")
     return summary_df
 
 
@@ -1022,6 +1070,7 @@ def run_activation_patching(
     seed: int,
     include_null_controls: bool,
     include_shuffled_control: bool,
+    write_jsonl_output: bool,
     initial_records: list[dict[str, Any]] | None = None,
 ) -> Any:
     from tqdm.auto import tqdm
@@ -1232,10 +1281,20 @@ def run_activation_patching(
                         progress.update(1)
 
                     if save_every > 0 and completed_batches % save_every == 0:
-                        save_patch_outputs(records, output_dir=output_dir, seed=seed)
+                        save_patch_outputs(
+                            records,
+                            output_dir=output_dir,
+                            seed=seed,
+                            write_jsonl_output=write_jsonl_output,
+                        )
 
     progress.close()
-    summary_df = save_patch_outputs(records, output_dir=output_dir, seed=seed)
+    summary_df = save_patch_outputs(
+        records,
+        output_dir=output_dir,
+        seed=seed,
+        write_jsonl_output=write_jsonl_output,
+    )
     return summary_df, records
 
 
@@ -1737,7 +1796,11 @@ def main() -> None:
             )
             combined_clean_by_id = merge_clean_margin_records(combined_clean_by_id, clean_by_id)
             clean_records = [combined_clean_by_id[example.id] for example in examples]
-            write_clean_margins(clean_records, output_dir)
+            write_clean_margins(
+                clean_records,
+                output_dir,
+                write_jsonl_output=not args.no_jsonl,
+            )
 
             summary_df, patch_records = run_activation_patching(
                 model=model,
@@ -1757,6 +1820,7 @@ def main() -> None:
                 seed=args.seed,
                 include_null_controls=args.include_null_controls or args.sanity_check,
                 include_shuffled_control=args.include_shuffled_control,
+                write_jsonl_output=not args.no_jsonl,
                 initial_records=patch_records,
             )
         finally:
