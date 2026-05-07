@@ -1,0 +1,37 @@
+{
+  "paper_paragraph": "To test whether the late-layer adapter-delta signals causally mediate final safe-action margins, we patched final-token residual-stream states between Base and each adapter. For adapter A, A-to-Base patching measures whether adapter states are sufficient to move the Base model toward the adapter, while Base-to-A patching measures whether replacing adapter states with Base states removes the adapter effect. We report recovered and removed fractions of the clean adapter margin shift across layers.",
+  "direction_vector_caution": "This activation-patching experiment copies each source example's own final-token residual state into the matched target example. It does not estimate an averaged adapter direction v or sweep an intervention scale alpha. For a future direction-vector experiment, estimate v on one split (for example random PD train) and test on a held-out split to avoid circularity, then sweep alpha values around the natural adapter-delta scale to test local linearity and saturation.",
+  "data_jsonl": "data/gtharmbench_balanced.jsonl",
+  "config": "configs/eval.yaml",
+  "subsets": {
+    "random_pd_150": 20,
+    "random_chicken_150": 20
+  },
+  "adapters": [
+    "ut",
+    "game"
+  ],
+  "adapter_loading": "Adapters are processed one at a time in isolated PEFT models. Each adapter is loaded through the same adapter-loader path used by behavioral evaluation, then Base mode uses disable_adapter(). This avoids fragile multi-adapter loading where a second adapter can be silently inactive.",
+  "layers": [
+    0,
+    20,
+    21,
+    31,
+    32,
+    33
+  ],
+  "n_transformer_layers": 32,
+  "final_norm_layer": 33,
+  "delta_threshold": 0.05,
+  "adapter_effect_threshold": 1e-06,
+  "allow_zero_adapter_deltas": false,
+  "eps": 1e-06,
+  "batch_size": 1,
+  "seed": 42,
+  "sanity_check": false,
+  "sanity_examples": 8,
+  "include_null_controls": true,
+  "include_shuffled_control": true,
+  "token_position": "final non-padding token: attention_mask.sum(dim=-1) - 1",
+  "layer_interpretation": "Layer 0 patches the embedding output. Layers 1..L patch transformer block outputs, where layer ell replaces the output of block ell-1. Layer L+1 patches the final normalized hidden state immediately before the LM head and is a readout sanity check, not a transformer block. For a 32-block Qwen model, layer 32 is block 31 output and layer 33 is final norm/readout."
+}
