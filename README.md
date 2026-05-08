@@ -168,10 +168,6 @@ Interpretation:
 
 ## Key Figures
 
-Behavioral evaluation summary:
-
-![Behavior overview](outputs/figures_full/behavior_overview.png)
-
 Layerwise logit-lens margins on the four selected subsets:
 
 ![Layerwise logit lens](outputs/figures_logit_lens/logit_lens_combined_2x2.png)
