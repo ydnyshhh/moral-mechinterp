@@ -1,18 +1,58 @@
 # moral-mechinterp
 
-`moral-mechinterp` is a reproducible research repo for behavioral and early mechanistic analysis on the GT-HarmBench two-choice moral/game-theoretic dataset. The central result so far is:
+`moral-mechinterp` is a reproducible research repo for studying how reward-adapted
+Qwen agents behave on the GT-HarmBench dataset, and where those behavioral
+differences appear inside the model. The current result is deliberately modest:
+aggregate safe-choice rates are nearly unchanged, but UT and GAME adapters create
+structured late-layer safe-action margin shifts in different strategic regimes.
 
-> Aggregate safe-choice rates are flat, but UT and GAME adapters create objective-specific late-layer safe-action margin shifts. These shifts are structured by strategic regime and occur with very small cosine representation drift, suggesting small readout-aligned perturbations rather than broad representation rewrites.
+The repo is not claiming that moral RL improves aggregate alignment, and it is not
+claiming to have found "moral circuits." The evidence so far is that adapter
+training reshapes late-layer decision evidence while leaving global safety rates
+almost flat.
 
-This is not a claim that moral RL improves aggregate alignment or that we have found moral circuits. The current evidence is diagnostic: adapter training reshapes late-layer decision evidence without producing strong binary safety gains.
+## Repository Layout
+
+```text
+moral-mechinterp/
+  configs/                    # Evaluation config and model IDs
+  data/                       # GT-HarmBench JSONL inputs
+  scripts/                    # Reproducible experiment and figure scripts
+  src/moral_mechinterp/       # Package code
+  outputs/                    # Behavior, logit-lens, drift, tables, figures
+  artifacts/                  # Activation-patching outputs
+  pyproject.toml              # uv project metadata and dependencies
+```
+
+Core package modules:
+
+- `config.py`: YAML config loading and typed evaluation settings.
+- `data.py`: GT-HarmBench loading, schema normalization, and validation.
+- `prompts.py`: deterministic A/B prompt construction.
+- `models.py`: Hugging Face CausalLM and PEFT/LoRA adapter loading.
+- `scoring.py`: next-token A/B logit scoring.
+- `disagreement.py`: disagreement-set and strong-flip assignment.
+- `metrics.py`: summary metrics and bootstrap confidence intervals.
+- `logit_lens.py`: hidden-state projection utilities.
+- `plot_style.py` and `plotting.py`: paper-style static figures.
 
 ## Setup
+
+The project uses `uv`.
 
 ```bash
 uv sync
 ```
 
-The evaluated models are:
+Optional extras:
+
+```bash
+uv sync --extra quantization  # bitsandbytes
+uv sync --extra tracking      # wandb
+uv sync --extra dev           # pytest, ruff
+```
+
+The main models are configured in `configs/eval.yaml`:
 
 | Key | Model |
 |---|---|
@@ -20,17 +60,74 @@ The evaluated models are:
 | UT | `agentic-moral-alignment/qwen35-9b__gtharm_pd_str_tft__gtharm_ut__native_tool__r1__gtharm_pd` |
 | GAME | `agentic-moral-alignment/qwen35-9b__gtharm_pd_str_tft__gtharm_game__native_tool__r1__gtharm_pd` |
 
-UT and GAME are PEFT/LoRA adapter repos; the loader supports both full CausalLM checkpoints and PEFT adapters.
+UT and GAME are PEFT/LoRA adapter repositories, not standalone full model
+checkpoints. The loader supports both normal CausalLM checkpoints and adapter
+repos by loading the adapter base model first, then applying the PEFT adapter.
+
+## Data
+
+The repo uses the GT-HarmBench dataset in a normalized two-choice A/B format. The
+preferred JSONL schema is:
+
+```json
+{
+  "id": "example_id",
+  "game_type": "Prisoner's Dilemma",
+  "scenario": "Scenario text...",
+  "option_a": "Action A...",
+  "option_b": "Action B...",
+  "safe_label": "A"
+}
+```
+
+`safe_label` is either `"A"` or `"B"`. If `safe_label == "A"`, option A is the
+safe or socially beneficial option and option B is harmful/defective; if
+`safe_label == "B"`, the reverse holds.
+
+The main evaluation file is position-balanced:
+
+```text
+data/gtharmbench_balanced.jsonl
+```
+
+Position balancing matters because the original clean conversion had many more
+safe answers in option A than option B; without balancing, a simple "choose A"
+bias could look artificially safe.
 
 ## Behavioral Anchor
 
-Prompts are deterministic A/B decisions ending in `Answer:`. The evaluator scores next-token logits for `" A"` and `" B"` and defines:
+Every experiment starts from the same deterministic prompt builder,
+`build_ab_prompt`. The prompt presents a high-stakes multi-agent scenario, lists
+actions `A.` and `B.`, and ends with the literal string:
 
-`safe margin = logit(safe option) - logit(harmful option)`
+```text
+Answer:
+```
 
-Positive margins mean the model prefers the safe/cooperative action; negative margins mean it prefers the harmful/defective action. Logit scoring avoids free-form parsing ambiguity and gives a continuous decision variable for later mechanistic work.
+The evaluator scores the next-token logits for the configured labels:
 
-Behavioral evaluation on the position-balanced GT-HarmBench dataset:
+```yaml
+score_tokens:
+  A: " A"
+  B: " B"
+```
+
+The core behavioral variable is:
+
+```text
+safe margin = logit(safe option) - logit(harmful option)
+```
+
+Positive safe margin means the model gives more evidence to the safe/cooperative
+action. Negative safe margin means it gives more evidence to the harmful or
+defective action. Logit scoring is used instead of free-form generation because it
+avoids parsing ambiguity and gives a continuous decision variable for later
+mechanistic analyses.
+
+## Results Snapshot
+
+Behavioral evaluation on the balanced GT-HarmBench set shows nearly flat
+aggregate safe-choice rates:
 
 | Model | Safe rate | Mean safe margin | Median safe margin | n |
 |---|---:|---:|---:|---:|
@@ -38,30 +135,16 @@ Behavioral evaluation on the position-balanced GT-HarmBench dataset:
 | UT | 0.701 | 0.658 | 0.750 | 3185 |
 | GAME | 0.701 | 0.631 | 0.625 | 3185 |
 
-Paired safe-rate changes relative to Base are effectively zero: UT − Base = −0.00094, GAME − Base = −0.00094, with bootstrap confidence intervals crossing zero.
+Paired safe-rate changes relative to Base are effectively zero:
 
-Primary outputs:
+| Comparison | Mean paired improvement | 95% bootstrap CI |
+|---|---:|---:|
+| UT - Base | -0.00094 | [-0.00597, +0.00377] |
+| GAME - Base | -0.00094 | [-0.00471, +0.00283] |
 
-- `outputs/behavior_full/model_choices.csv`
-- `outputs/behavior_full/model_choices.jsonl`
-- `outputs/tables_full/overall_metrics.csv`
-- `outputs/tables_full/paired_improvements.csv`
+The interesting signal is not aggregate safety. It is late-layer margin movement:
 
-## Mechanistic Findings
-
-Layerwise logit lens projects the final prompt-token residual stream at each layer through the final norm and LM head. Layer 0 is the embedding output; layer 32 recovers the final behavioral A/B margin. Late-layer summaries average layers 21-31, excluding layer 32.
-
-Adapter-delta logit lens subtracts the Base safe-margin trajectory from each adapter trajectory:
-
-- `UT − Base`: utilitarian adapter-induced safe-margin shift.
-- `GAME − Base`: game-theoretic adapter-induced safe-margin shift.
-- `GAME − UT`: relative GAME-vs-UT adapter shift.
-
-Representation drift compares final prompt-token hidden states with pairwise cosine drift.
-
-Activation patching tests causality directly by copying each source example's final-token residual state into the matched target forward pass. The patching convention is explicit: layer 0 is the embedding output, layers 1..L are transformer block outputs, and layer L+1 is the final-norm readout site. For the 32-block Qwen model, layer 32 is the last block output and layer 33 is final norm. The final-norm site is reported as a sanity check, not as a transformer-layer effect. This is not an averaged direction-vector intervention; future direction-vector tests should estimate directions on one split, test on held-out examples, and sweep the intervention scale.
-
-| Subset | n | UT−Base margin | GAME−Base margin | GAME−UT margin | Base–UT drift | Base–GAME drift | UT–GAME drift |
+| Subset | n | UT-Base margin | GAME-Base margin | GAME-UT margin | Base-UT drift | Base-GAME drift | UT-GAME drift |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | UT-favored margin shifts | 150 | +0.317 | -0.157 | -0.474 | 0.00028 | 0.00016 | 0.00051 |
 | GAME-favored margin shifts | 150 | -0.103 | +0.158 | +0.262 | 0.00017 | 0.00018 | 0.00035 |
@@ -72,40 +155,61 @@ Activation patching tests causality directly by copying each source example's fi
 
 Interpretation:
 
-- UT increases late-layer safe-action evidence on UT-favored and Prisoner's Dilemma-heavy subsets.
-- GAME increases late-layer safe-action evidence on GAME-favored and Chicken-heavy subsets.
-- The random PD/Chicken controls show the same directional pattern, so the effect is not only a top-shift selection artifact.
-- Cosine representation drift stays tiny, around `1e-4` to `8e-4`, even when adapter-delta margins are large.
+- UT increases late-layer safe-action evidence on UT-favored and Prisoner's
+  Dilemma-heavy subsets.
+- GAME increases late-layer safe-action evidence on GAME-favored and
+  Chicken-heavy subsets.
+- Random PD/Chicken controls show the same directional pattern, so the effect is
+  not only a top-shift selection artifact.
+- Representation drift remains tiny, around `1e-4` to `8e-4`, even where
+  adapter-delta margins are sizable.
+- Strong binary flips are not the main signal in this run; the useful effect is
+  continuous movement in the safe-action margin.
 
-Main figures:
+## Key Figures
 
-- `outputs/figures_logit_lens/logit_lens_combined_2x2.png`
-- `outputs/figures_adapter_delta/adapter_delta_logit_lens_2x3.png`
-- `outputs/figures_adapter_delta/adapter_delta_logit_lens_heatmap.png`
-- `outputs/figures_adapter_delta/late_layer_effect_summary_heatmap.png`
-- `outputs/figures_repdrift/*_cosine_drift.png`
+Behavioral evaluation summary:
 
-![Late-layer effect summary](outputs/figures_adapter_delta/late_layer_effect_summary_heatmap.png)
+![Behavior overview](outputs/figures_full/behavior_overview.png)
 
-## Experiments
+Layerwise logit-lens margins on the four selected subsets:
 
-| Stage | Script | Purpose |
+![Layerwise logit lens](outputs/figures_logit_lens/logit_lens_combined_2x2.png)
+
+Late-layer safe-action margin shifts:
+
+![Safe-action margin shifts](outputs/figures_adapter_delta/late_layer_effect_summary_heatmap_safe_action_margin_shifts.png)
+
+Late-layer representation drift:
+
+![Representation drift](outputs/figures_adapter_delta/late_layer_effect_summary_heatmap_representation_drift.png)
+
+Activation-patching raw margin effects:
+
+![Activation patching raw effects](artifacts/patching_full_v9/fig_raw_margin_change_by_layer.png)
+
+## Experiments Implemented
+
+| Stage | Script | Output |
 |---|---|---|
-| Data conversion | `scripts/convert_gtharmbench_csv.py` | Convert original GT-HarmBench CSV/XLSX to JSONL. |
-| Position balancing | `scripts/balance_ab_positions.py` | Randomize A/B positions to avoid safe-label imbalance. |
-| Behavioral eval | `scripts/evaluate_behavior.py` or `moral-eval` | Score A/B logits and build disagreement sets. |
-| Behavioral summary | `scripts/summarize_behavior.py` or `moral-summary` | Tables, safe rates, bootstrap paired improvements, subset CSVs. |
-| Logit lens | `scripts/03_logit_lens_margins.py` | Layerwise safe-action margin trajectories. |
-| Paper figures | `scripts/04_make_paper_figures.py` | Combined 2x2 logit-lens figure and late-layer tables. |
-| Random controls | `scripts/04_make_random_control_subsets.py`, `scripts/05_summarize_control_logit_lens.py` | Random PD/Chicken controls. |
-| Representation drift | `scripts/06_representation_drift.py`, `scripts/07_summarize_representation_drift.py` | Pairwise layerwise cosine drift. |
-| Adapter deltas | `scripts/08_plot_adapter_delta_logit_lens.py`, `scripts/09_plot_adapter_delta_heatmap.py` | Base-subtracted adapter effects. |
-| Effect summary | `scripts/10_plot_late_layer_effect_summary_heatmap.py` | Compact late-layer margin + drift heatmap. |
-| Activation patching | `scripts/run_activation_patching.py` | Causal final-token residual patching between Base and adapters. |
+| Data conversion | `scripts/convert_gtharmbench_csv.py` | normalized GT-HarmBench JSONL |
+| A/B balancing | `scripts/balance_ab_positions.py` | `data/gtharmbench_balanced.jsonl` |
+| Behavioral eval | `scripts/evaluate_behavior.py` or `moral-eval` | `outputs/behavior_full/model_choices.csv` |
+| Behavioral summary | `scripts/summarize_behavior.py` or `moral-summary` | rates, margins, disagreement sets |
+| Logit lens | `scripts/03_logit_lens_margins.py` | layerwise safe-margin trajectories |
+| Paper logit-lens figures | `scripts/04_make_paper_figures.py` | combined 2x2 figure and late-layer table |
+| Random controls | `scripts/04_make_random_control_subsets.py` | random PD and Chicken subsets |
+| Control summary | `scripts/05_summarize_control_logit_lens.py` | random-control late-layer table |
+| Representation drift | `scripts/06_representation_drift.py` | pairwise cosine drift by layer |
+| Drift summary | `scripts/07_summarize_representation_drift.py` | late-layer drift table |
+| Adapter-delta lines | `scripts/08_plot_adapter_delta_logit_lens.py` | Base-subtracted line plots |
+| Adapter-delta heatmap | `scripts/09_plot_adapter_delta_heatmap.py` | layer-by-subset delta heatmaps |
+| Late-layer effect heatmap | `scripts/10_plot_late_layer_effect_summary_heatmap.py` | margin + drift summary figures |
+| Activation patching | `scripts/run_activation_patching.py` | causal patching CSVs and figures |
 
-## Reproduction
+## Reproduction Commands
 
-Run behavioral evaluation:
+Behavioral evaluation:
 
 ```bash
 PYTHONPATH=src python -m moral_mechinterp.cli.evaluate_behavior \
@@ -114,7 +218,7 @@ PYTHONPATH=src python -m moral_mechinterp.cli.evaluate_behavior \
   --output-dir outputs/behavior_full
 ```
 
-Summarize behavior:
+Behavioral summary:
 
 ```bash
 PYTHONPATH=src python -m moral_mechinterp.cli.summarize_behavior \
@@ -124,7 +228,7 @@ PYTHONPATH=src python -m moral_mechinterp.cli.summarize_behavior \
   --figures-dir outputs/figures_full
 ```
 
-Run logit lens on the main subsets:
+Layerwise logit lens for one subset:
 
 ```bash
 PYTHONPATH=src python scripts/03_logit_lens_margins.py \
@@ -134,15 +238,7 @@ PYTHONPATH=src python scripts/03_logit_lens_margins.py \
   --models base,ut,game
 ```
 
-Repeat for:
-
-- `top_game_margin_shift`
-- `ut_safe_game_harmful`
-- `game_safe_ut_harmful`
-- `random_pd_150`
-- `random_chicken_150`
-
-Regenerate tables and figures from saved outputs:
+Regenerate saved tables and figures:
 
 ```bash
 PYTHONPATH=src python scripts/04_make_paper_figures.py
@@ -153,7 +249,7 @@ PYTHONPATH=src python scripts/09_plot_adapter_delta_heatmap.py
 PYTHONPATH=src python scripts/10_plot_late_layer_effect_summary_heatmap.py
 ```
 
-Before a full activation patching run, run the hook sanity check. It uses a few examples, enables null patch controls, and verifies that layer 0 has near-zero effect while the final-norm readout site recovers the source margins:
+Activation-patching sanity check:
 
 ```bash
 PYTHONPATH=src python scripts/run_activation_patching.py \
@@ -164,16 +260,61 @@ PYTHONPATH=src python scripts/run_activation_patching.py \
   --no-plot
 ```
 
-Run activation patching on the default priority subsets:
+Priority-subset activation-patching run:
 
 ```bash
 PYTHONPATH=src python scripts/run_activation_patching.py \
   --config configs/eval.yaml \
   --data-jsonl data/gtharmbench_balanced.jsonl \
-  --output-dir artifacts/patching \
-  --include-null-controls
+  --output-dir artifacts/patching_full_v9 \
+  --save-every 1000 \
+  --no-jsonl \
+  --no-plot
 ```
+
+Plot from a completed activation-patching run:
+
+```bash
+PYTHONPATH=src python scripts/run_activation_patching.py \
+  --plot-only \
+  --config configs/eval.yaml \
+  --output-dir artifacts/patching_full_v9
+```
+
+## Activation Patching Convention
+
+Activation patching copies each source example's own final-token residual state
+into the matched target example. It is not an averaged direction-vector
+intervention.
+
+Layer indexing:
+
+- Layer 0: embedding output.
+- Layers 1..L: transformer block outputs, where layer `ell` is block `ell-1`.
+- Layer L+1: final-normalized hidden state immediately before the LM head.
+
+For the 32-block Qwen model, layer 32 is the final block output and layer 33 is
+the final-norm/readout site. The readout site is useful as a sanity check, not as
+a transformer-layer causal claim.
 
 ## Compute Notes
 
-The models are 9B-scale. A100 40GB/80GB, L40S, or H100 GPUs are recommended. Inference scripts load one model at a time to reduce VRAM pressure. Use `batch_size=1` for robust runs, then increase only after validating memory.
+These are 9B-scale models. A100 40GB/80GB, L40S, or H100 GPUs are recommended.
+Most scripts intentionally load one model at a time to reduce VRAM pressure.
+`batch_size=1` is the safest default for the mechanistic experiments.
+
+On RunPod, long activation-patching jobs are more reliable if the expensive
+inference and plotting are separated:
+
+```bash
+nohup env PYTHONPATH=src python scripts/run_activation_patching.py \
+  --config configs/eval.yaml \
+  --data-jsonl data/gtharmbench_balanced.jsonl \
+  --output-dir /tmp/patching_full \
+  --save-every 1000 \
+  --no-jsonl \
+  --no-plot \
+  > /tmp/patching_full.log 2>&1 &
+```
+
+Then run `--plot-only` after the CSVs are complete.
