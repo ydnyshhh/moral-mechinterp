@@ -333,6 +333,136 @@ def positive_limit(values, requested: float | None) -> float:
     return max(max_value, 1e-9)
 
 
+def draw_effect_heatmap(
+    *,
+    ax,
+    cbar_ax,
+    values,
+    annotations,
+    row_labels: list[str],
+    column_labels: list[str],
+    cmap,
+    vmin: float,
+    vmax: float,
+    center: float | None,
+    title: str,
+    colorbar_label: str,
+    annotation_size: float,
+) -> None:
+    import seaborn as sns
+
+    heatmap_kwargs = {
+        "ax": ax,
+        "cmap": cmap,
+        "vmin": vmin,
+        "vmax": vmax,
+        "linewidths": 0.6,
+        "linecolor": "#FFFFFF",
+        "annot": annotations,
+        "fmt": "",
+        "annot_kws": {"fontsize": annotation_size, "fontweight": "bold"},
+        "xticklabels": column_labels,
+        "yticklabels": row_labels,
+        "cbar": True,
+        "cbar_ax": cbar_ax,
+        "cbar_kws": {"label": colorbar_label},
+    }
+    if center is not None:
+        heatmap_kwargs["center"] = center
+    sns.heatmap(values, **heatmap_kwargs)
+
+    ax.set_title(title, pad=10)
+    ax.set_xlabel("")
+    ax.set_ylabel("Subset")
+    ax.tick_params(axis="both", length=0)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+    ax.hlines(
+        4,
+        *ax.get_xlim(),
+        color="#2A2A2A",
+        linewidth=0.95,
+        linestyle=(0, (2, 2)),
+        alpha=0.72,
+    )
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(0.65)
+        spine.set_color("#2A2A2A")
+    cbar_ax.tick_params(length=2.5, width=0.7)
+    cbar_ax.yaxis.label.set_size(8.5)
+
+
+def plot_single_effect_summary(
+    combined: pd.DataFrame,
+    *,
+    figure_dir: Path,
+    output_prefix: str,
+    late_layers_label: str,
+    values,
+    annotations,
+    row_labels: list[str],
+    column_labels: list[str],
+    cmap,
+    vmin: float,
+    vmax: float,
+    center: float | None,
+    title: str,
+    colorbar_label: str,
+    annotation_size: float,
+    colorbar_format: str,
+) -> list[Path]:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from matplotlib.ticker import FormatStrFormatter
+
+    from moral_mechinterp.plot_style import apply_paper_style, save_figure
+
+    sns.set_theme(context="paper", style="white")
+    apply_paper_style(font_family="serif")
+
+    figure_dir.mkdir(parents=True, exist_ok=True)
+    fig = plt.figure(figsize=(6.9, 4.25))
+    grid = fig.add_gridspec(
+        1,
+        2,
+        width_ratios=[1.0, 0.055],
+        left=0.36,
+        right=0.94,
+        top=0.82,
+        bottom=0.24,
+        wspace=0.16,
+    )
+    ax = fig.add_subplot(grid[0, 0])
+    cbar_ax = fig.add_subplot(grid[0, 1])
+    draw_effect_heatmap(
+        ax=ax,
+        cbar_ax=cbar_ax,
+        values=values,
+        annotations=annotations,
+        row_labels=row_labels,
+        column_labels=column_labels,
+        cmap=cmap,
+        vmin=vmin,
+        vmax=vmax,
+        center=center,
+        title=title,
+        colorbar_label=colorbar_label,
+        annotation_size=annotation_size,
+    )
+    cbar_ax.yaxis.set_major_formatter(FormatStrFormatter(colorbar_format))
+    fig.text(
+        0.36,
+        0.12,
+        f"Late-layer means average layers {late_layers_label}; layer 32 is excluded.",
+        ha="left",
+        va="center",
+        fontsize=8.2,
+        color="#2A2A2A",
+    )
+    return save_figure(fig, figure_dir / output_prefix)
+
+
 def plot_effect_summary(
     combined: pd.DataFrame,
     *,
@@ -370,6 +500,48 @@ def plot_effect_summary(
     )
 
     figure_dir.mkdir(parents=True, exist_ok=True)
+    separate_paths: list[Path] = []
+    separate_paths.extend(
+        plot_single_effect_summary(
+            combined,
+            figure_dir=figure_dir,
+            output_prefix=f"{output_prefix}_safe_action_margin_shifts",
+            late_layers_label=late_layers_label,
+            values=margin_values,
+            annotations=annotation_matrix(combined, MARGIN_COLUMNS, kind="margin"),
+            row_labels=row_labels,
+            column_labels=["UT-Base", "GAME-Base", "GAME-UT"],
+            cmap=margin_cmap,
+            vmin=-margin_limit,
+            vmax=margin_limit,
+            center=0.0,
+            title="Safe-action margin shifts",
+            colorbar_label="Late-layer safe-margin shift",
+            annotation_size=8.4,
+            colorbar_format="%.1f",
+        )
+    )
+    separate_paths.extend(
+        plot_single_effect_summary(
+            combined,
+            figure_dir=figure_dir,
+            output_prefix=f"{output_prefix}_representation_drift",
+            late_layers_label=late_layers_label,
+            values=drift_values,
+            annotations=annotation_matrix(combined, DRIFT_COLUMNS, kind="drift"),
+            row_labels=row_labels,
+            column_labels=["Base-UT", "Base-GAME", "UT-GAME"],
+            cmap=drift_cmap,
+            vmin=0.0,
+            vmax=drift_limit,
+            center=None,
+            title="Representation drift",
+            colorbar_label="Late-layer cosine drift",
+            annotation_size=8.0,
+            colorbar_format="%.5f",
+        )
+    )
+
     fig = plt.figure(figsize=(9.6, 3.85))
     grid = fig.add_gridspec(
         1,
@@ -463,7 +635,8 @@ def plot_effect_summary(
         fontsize=8.2,
         color="#2A2A2A",
     )
-    return save_figure(fig, figure_dir / output_prefix)
+    combined_paths = save_figure(fig, figure_dir / output_prefix)
+    return combined_paths + separate_paths
 
 
 def main() -> None:
